@@ -20,8 +20,9 @@
       </div>
       <div class="top-actions">
         <button class="ghost" id="resetBtn">Réinitialiser</button>
+        <button class="ghost" id="libraryBtn">Mes plans</button>
         <button class="ghost" id="saveBtn">Sauver</button>
-        <button class="primary" id="exportBtn">Exporter</button>
+        <button class="primary" id="exportBtn">Exporter PNG</button>
       </div>
     </header>
 
@@ -31,9 +32,27 @@
           <label>Éléments du plan</label>
           <button class="add-main" id="openAddBtn"><span class="plus">+</span> Ajouter un élément</button>
         </div>
+        <div class="plan-tools">
+          <label>Grille
+            <select id="snapSelect">
+              <option value="0">Libre</option>
+              <option value="0.1">10 cm</option>
+              <option value="0.25" selected>25 cm</option>
+              <option value="0.5">50 cm</option>
+              <option value="1">1 m</option>
+            </select>
+          </label>
+          <label>Infos
+            <select id="labelsModeSelect">
+              <option value="full">Complet</option>
+              <option value="names">Noms</option>
+              <option value="hidden">Masqué</option>
+            </select>
+          </label>
+        </div>
         <div class="toolbar-note">
-          <strong>V0.5</strong>
-          <span>Multicam · décor et matériel dans le cadre</span>
+          <strong>V0.6</strong>
+          <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
         </div>
       </section>
 
@@ -68,7 +87,7 @@
               <g id="beamsLayer"></g>
               <g id="objectsLayer"></g>
             </svg>
-            <div class="scale-note">1 grand carreau ≈ 1 m</div>
+            <div class="scale-note"><strong>1 grand carreau = 1 m</strong><span>petit carreau = 25 cm</span></div>
           </div>
         </div>
 
@@ -167,6 +186,38 @@
           <div class="simple-grid" id="simpleGrid"></div>
         </div>
       </div>
+    </div>
+  </dialog>
+
+  <dialog id="libraryDialog" class="library-dialog">
+    <div class="library-shell">
+      <div class="dialog-head">
+        <div>
+          <div class="dialog-kicker">BOS · PLAN FEU</div>
+          <h2>Mes plans</h2>
+        </div>
+        <button class="dialog-close" id="closeLibraryBtn" aria-label="Fermer">×</button>
+      </div>
+      <div class="library-current">
+        <div class="choice-label">PLAN ACTUEL</div>
+        <div class="library-save-grid">
+          <label>Nom<input id="planNameInput" type="text" placeholder="Nom du plan"></label>
+          <label>Dossier<select id="folderSelect"></select></label>
+        </div>
+        <div class="library-actions">
+          <button class="ghost" id="newFolderBtn">+ Nouveau dossier</button>
+          <button class="ghost" id="newPlanBtn">Nouveau plan</button>
+          <button class="primary" id="saveToLibraryBtn">Enregistrer dans Mes plans</button>
+        </div>
+      </div>
+      <div class="library-list-head">
+        <div>
+          <div class="choice-label">BIBLIOTHÈQUE</div>
+          <p>Les plans sont stockés sur cet appareil et se mettent à jour automatiquement.</p>
+        </div>
+        <button class="ghost small-btn" id="exportProjectBtn">Exporter le projet BOS</button>
+      </div>
+      <div id="planLibraryList" class="plan-library-list"></div>
     </div>
   </dialog>
 

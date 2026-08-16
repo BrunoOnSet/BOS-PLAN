@@ -1,11 +1,13 @@
-BOS · PLAN FEU — V0.5
+BOS · PLAN FEU — V0.6
 
-Nouveautés :
-- prévisualisation de toutes les caméras : 1 plein écran, 2 en split, 3+ avec sélection
-- caméra / capteur / focale propres à chaque caméra
-- deuxième sujet, murs, portes, fenêtres, tables et accessoires visibles dans les vues caméra
-- projecteurs, softbox, cadres, négatifs et autres caméras peuvent apparaître dans le champ
-- indicateur d’équipement technique dans le cadre
-- hauteur caméra et hauteurs de décor réglables
+Nouveautés principales :
+- Échelle exacte : 1 grand carreau = 1 m ; petit carreau = 25 cm.
+- Aimantation optionnelle : libre, 10 cm, 25 cm, 50 cm ou 1 m.
+- Position X/Y précise dans les réglages.
+- Informations du plan : complet / noms / masqué + position individuelle.
+- Bibliothèque Mes plans avec noms, dossiers et autosauvegarde locale.
+- Export du projet BOS en JSON.
+- Export PNG corrigé avec styles SVG embarqués.
+- Prévisualisation multicam et matériel dans le champ conservées.
 
-Ouvrir index.html pour tester localement.
+Ouvrir index.html dans un navigateur moderne.

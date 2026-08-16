@@ -19,6 +19,13 @@ const modelChoices=document.getElementById('modelChoices');
 const catalogCount=document.getElementById('catalogCount');
 const simpleGrid=document.getElementById('simpleGrid');
 const simpleLabel=document.getElementById('simpleLabel');
+const snapSelect=document.getElementById('snapSelect');
+const labelsModeSelect=document.getElementById('labelsModeSelect');
+const currentPlanBadge=document.getElementById('currentPlanBadge');
+const libraryDialog=document.getElementById('libraryDialog');
+const planNameInput=document.getElementById('planNameInput');
+const folderSelect=document.getElementById('folderSelect');
+const planLibraryList=document.getElementById('planLibraryList');
 
 const cameras={
   'Sony FX3':{w:35.6,h:23.8},
@@ -134,11 +141,15 @@ const decorCatalog=[
   {type:'table',name:'Table',short:'TABLE',width:1.6,height:.8}
 ];
 
-let state={objects:[],selected:null,activePreviewCamera:null,cameraModel:'Sony FX3',focal:50};
+const CURRENT_KEY='bos-plan-feu-v06-current';
+const LIB_KEY='bos-plan-feu-library-v06';
+let state={objects:[],selected:null,activePreviewCamera:null,cameraModel:'Sony FX3',focal:50,snap:.25,labelsMode:'full',planId:null,planName:'Plan sans titre',folderId:'folder_general'};
+let library={folders:[{id:'folder_general',name:'Plans'}],plans:[]};
 let drag=null;
 let replaceLightId=null;
 let catalogBrand='Amaran';
 let catalogFamily='';
+let autosaveTimer=null;
 const SCALE=100;
 
 function uid(prefix){return prefix+'_'+Math.random().toString(36).slice(2,8)}
@@ -148,6 +159,31 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)/SCALE}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c))}
 function svgEl(tag,attrs={}){const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);return e}
+function deepClone(v){return JSON.parse(JSON.stringify(v))}
+function safeName(s){return String(s||'Plan Feu').trim().replace(/[\/:*?"<>|]+/g,'_').replace(/\s+/g,' ').slice(0,80)||'Plan Feu'}
+function snapValue(v){const step=Number(state.snap)||0;return step?Math.round(v/(step*SCALE))*step*SCALE:v}
+function ensureStateDefaults(){
+  if(!Array.isArray(state.objects))state.objects=[];
+  state.snap=[0,.1,.25,.5,1].includes(Number(state.snap))?Number(state.snap):.25;
+  if(!['full','names','hidden'].includes(state.labelsMode))state.labelsMode='full';
+  state.planName=state.planName||'Plan sans titre';
+  state.folderId=state.folderId||library.folders[0]?.id||'folder_general';
+  if(state.planId===undefined)state.planId=null;
+}
+function loadLibrary(){
+  try{const raw=localStorage.getItem(LIB_KEY),v=raw&&JSON.parse(raw);if(v&&Array.isArray(v.folders)&&Array.isArray(v.plans))library=v}catch{}
+  if(!library.folders.length)library.folders=[{id:'folder_general',name:'Plans'}];
+}
+function persistLibrary(){localStorage.setItem(LIB_KEY,JSON.stringify(library))}
+function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(snapSelect)snapSelect.value=String(Number(state.snap)||0);if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full'}
+function snapshotState(){const copy=deepClone(state);copy.selected=null;return copy}
+function persistCurrent(){
+  try{localStorage.setItem(CURRENT_KEY,JSON.stringify(snapshotState()));if(state.planId){const rec=library.plans.find(p=>p.id===state.planId);if(rec){rec.name=state.planName;rec.folderId=state.folderId;rec.updatedAt=Date.now();rec.state=snapshotState();persistLibrary()}}}catch(e){console.warn('Autosave BOS',e)}
+  updatePlanBadge();
+}
+function scheduleAutosave(){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(persistCurrent,350)}
+function formatSavedDate(ts){try{return new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'short'}).format(new Date(ts))}catch{return ''}}
+function downloadBlob(blob,filename){const a=document.createElement('a');const url=URL.createObjectURL(blob);a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200)}
 
 function presetForObject(o){
   if(!o || o.kind!=='light')return null;
@@ -172,6 +208,7 @@ function seed(){
     {id:uid('subj'),kind:'subject',name:'Sujet 1',x:500,y:300,rot:90,height:1.75,locked:false},
     {id:uid('light'),kind:'light',name:'amaran Halo 200x',brand:'Amaran',family:'Halo',form:'halo',short:'H200',x:285,y:330,rot:-15,beam:55,intensity:60,height:2.0,modifier:'none',locked:false}
   ];
+  state.objects.forEach(o=>{o.labelVisible=true;o.labelPos='auto'});
   state.selected=state.objects[2].id;
   state.activePreviewCamera=state.objects[0].id;
 }
@@ -190,6 +227,8 @@ function renderCanvas(){
   state.objects.filter(o=>o.kind==='light').forEach(drawLightBeam);
   state.objects.forEach(drawObject);
   renderPreview();
+  updatePlanBadge();
+  scheduleAutosave();
 }
 function render(){renderCanvas();renderInspector()}
 function drawCameraFov(o){
@@ -302,10 +341,16 @@ function drawObject(o){
     const d=drawDecorSymbol(g,o);hitW=d.w+24;hitH=d.h+24;labelY=d.h/2+28;g.appendChild(svgEl('rect',{x:-hitW/2,y:-hitH/2,width:hitW,height:hitH,rx:8,class:'selection-box'}));
   }
   g.appendChild(svgEl('rect',{x:-hitW/2,y:-hitH/2,width:hitW,height:hitH,class:'hit'}));
-  const label=svgEl('g',{transform:`rotate(${-o.rot}) translate(0 ${labelY})`}),t=svgEl('text',{class:'object-label','text-anchor':'middle'});t.textContent=o.name;label.appendChild(t);
-  if(o.kind==='light'){const st=svgEl('text',{class:'object-sub','text-anchor':'middle',y:17});st.textContent=`${o.family||'Lumière'}${o.modifier==='softbox'?' · Softbox':''} · ${o.intensity}%`;label.appendChild(st)}
-  else if(o.kind==='accessory'||o.kind==='decor'){const st=svgEl('text',{class:'object-sub','text-anchor':'middle',y:17});st.textContent=`${(o.width||0).toFixed(1)} × ${(o.height||0).toFixed(1)} m${o.locked?' · verrouillé':''}`;label.appendChild(st)}
-  g.appendChild(label);
+  if(state.labelsMode!=='hidden'&&o.labelVisible!==false){
+    const pos=o.labelPos||'auto';let lx=0,ly=labelY,anchor='middle';
+    if(pos==='top'){ly=-hitH/2-18}else if(pos==='left'){lx=-hitW/2-12;ly=0;anchor='end'}else if(pos==='right'){lx=hitW/2+12;ly=0;anchor='start'}else if(pos==='bottom'){ly=hitH/2+24}
+    const label=svgEl('g',{transform:`rotate(${-o.rot}) translate(${lx} ${ly})`}),t=svgEl('text',{class:'object-label','text-anchor':anchor});t.textContent=o.name;label.appendChild(t);
+    if(state.labelsMode==='full'){
+      if(o.kind==='light'){const st=svgEl('text',{class:'object-sub','text-anchor':anchor,y:17});st.textContent=`${o.family||'Lumière'}${o.modifier==='softbox'?' · Softbox':''} · ${o.intensity}%`;label.appendChild(st)}
+      else if(o.kind==='accessory'||o.kind==='decor'){const st=svgEl('text',{class:'object-sub','text-anchor':anchor,y:17});st.textContent=`${(o.width||0).toFixed(1)} × ${(o.height||0).toFixed(1)} m${o.locked?' · verrouillé':''}`;label.appendChild(st)}
+    }
+    g.appendChild(label);
+  }
   if(state.selected===o.id&&!o.locked){
     const gizmo=svgEl('g',{class:'rotation-gizmo'});gizmo.appendChild(svgEl('line',{x1:40,y1:0,x2:65,y2:0,class:'rotation-stem'}));const handle=svgEl('circle',{cx:74,cy:0,r:12,class:'rotation-handle','data-id':o.id});gizmo.appendChild(handle);const arrow=svgEl('path',{d:'M 69 -4 A 6 6 0 1 1 69 4 M 69 4 L 66 1 M 69 4 L 72 1',class:'rotation-icon','data-id':o.id});gizmo.appendChild(arrow);const angle=svgEl('text',{x:74,y:-19,class:'rotation-angle','text-anchor':'middle'});angle.textContent=`${Math.round(o.rot)}°`;gizmo.appendChild(angle);handle.addEventListener('pointerdown',startRotate);arrow.addEventListener('pointerdown',startRotate);gizmo.addEventListener('pointerdown',e=>e.stopPropagation());g.appendChild(gizmo);
   }
@@ -324,7 +369,7 @@ function startRotate(e){e.preventDefault();e.stopPropagation();const id=e.curren
 stage.addEventListener('pointermove',e=>{
   if(!drag)return;const o=state.objects.find(x=>x.id===drag.id);if(!o)return;const p=pointerToStage(e);
   if(drag.mode==='rotate'){o.rot=deg(Math.atan2(p.y-o.y,p.x-o.x));if(o.rot>180)o.rot-=360;if(o.rot<=-180)o.rot+=360}
-  else{o.x=clamp(p.x-drag.dx,35,965);o.y=clamp(p.y-drag.dy,35,585)}renderCanvas();
+  else{o.x=clamp(snapValue(p.x-drag.dx),35,965);o.y=clamp(snapValue(p.y-drag.dy),35,585)}renderCanvas();
 });
 function endGesture(){if(!drag)return;try{stage.releasePointerCapture?.(drag.pointerId)}catch{}drag=null;renderInspector()}
 stage.addEventListener('pointerup',endGesture);stage.addEventListener('pointercancel',endGesture);
@@ -343,6 +388,7 @@ function renderInspector(){
     html+=`<div class="field"><label>Caméra / capteur</label><select id="selectedCameraModel">${Object.keys(cameras).map(name=>`<option value="${esc(name)}" ${o.cameraModel===name?'selected':''}>${esc(name)}</option>`).join('')}</select></div>`;
     html+=`<div class="field-grid"><div class="field"><label>Focale</label><div class="field-inline"><input data-k="focal" type="number" min="12" max="300" step="1" value="${o.focal}"><span class="unit">mm</span></div></div><div class="field"><label>Hauteur caméra</label><div class="field-inline"><input data-k="height" type="number" min="0.2" max="4" step="0.05" value="${o.height}"><span class="unit">m</span></div></div></div>`;
   }
+  html+=`<div class="field-grid"><div class="field"><label>Position X</label><div class="field-inline"><input data-k="xMeters" type="number" min="0" max="10" step="0.01" value="${(o.x/SCALE).toFixed(2)}"><span class="unit">m</span></div></div><div class="field"><label>Position Y</label><div class="field-inline"><input data-k="yMeters" type="number" min="0" max="6.2" step="0.01" value="${(o.y/SCALE).toFixed(2)}"><span class="unit">m</span></div></div></div><div class="position-grid-note">Origine X/Y : coin supérieur gauche du plan.</div>`;
   html+=`<div class="field-grid"><div class="field"><label>Rotation</label><div class="field-inline"><input data-k="rot" type="number" min="-180" max="180" value="${Math.round(o.rot)}"><span class="unit">°</span></div></div>`;
   if(o.kind==='subject')html+=`<div class="field"><label>Taille</label><div class="field-inline"><input data-k="height" type="number" min="1" max="2.2" step="0.01" value="${o.height}"><span class="unit">m</span></div></div>`;
   else if(o.kind==='light')html+=`<div class="field"><label>Hauteur source</label><div class="field-inline"><input data-k="height" type="number" min="0" max="5" step="0.1" value="${o.height}"><span class="unit">m</span></div></div>`;
@@ -353,7 +399,8 @@ function renderInspector(){
     const zDefault=o.kind==='accessory'?(o.height||1.2):(o.type==='wall'?2.5:o.type==='door'?2.04:o.type==='window'?1.2:o.type==='table'?.75:1);
     o.zHeight=Number(o.zHeight||zDefault);
     if(o.elevation===undefined)o.elevation=o.type==='window'?.9:(o.kind==='accessory'?.35:0);
-    html+=`<div class="field-grid"><div class="field"><label>Profondeur plan</label><div class="field-inline"><input data-k="height" type="number" min="0.05" max="20" step="0.1" value="${o.height}"><span class="unit">m</span></div></div><div class="field"><label>Hauteur réelle</label><div class="field-inline"><input data-k="zHeight" type="number" min="0.05" max="10" step="0.05" value="${o.zHeight}"><span class="unit">m</span></div></div></div>`;
+    const depthLabel=o.kind==='decor'&&['wall','door','window'].includes(o.type)?'Épaisseur':'Profondeur';
+    html+=`<div class="field-grid"><div class="field"><label>${depthLabel}</label><div class="field-inline"><input data-k="height" type="number" min="0.05" max="20" step="0.05" value="${o.height}"><span class="unit">m</span></div></div><div class="field"><label>Hauteur réelle</label><div class="field-inline"><input data-k="zHeight" type="number" min="0.05" max="10" step="0.05" value="${o.zHeight}"><span class="unit">m</span></div></div></div>`;
     if(o.kind==='accessory'||o.type==='window')html+=`<div class="field"><label>Hauteur au sol</label><div class="field-inline"><input data-k="elevation" type="number" min="0" max="5" step="0.05" value="${o.elevation}"><span class="unit">m</span></div></div>`;
   }
   if(o.kind==='light'){
@@ -363,11 +410,14 @@ function renderInspector(){
     html+=`<div class="field"><label>Distance au sujet le plus proche</label><div class="field-inline"><input disabled value="${nearestSubjectDistance(o).toFixed(2)}"><span class="unit">m</span></div></div>`;
     html+=`<button class="change-fixture" id="changeFixtureBtn">Changer de modèle</button>`;
   }
+  if(o.labelVisible===undefined)o.labelVisible=true;if(!o.labelPos)o.labelPos='auto';
+  html+=`<div class="field-divider"></div><div class="field"><label>Informations sur le plan</label><label class="label-row"><span>Afficher les infos</span><input id="labelVisibleSelected" type="checkbox" ${o.labelVisible!==false?'checked':''}></label><div class="inspector-choice five" data-choice="labelPos">${[['auto','Auto'],['top','Haut'],['bottom','Bas'],['left','Gauche'],['right','Droite']].map(([v,l])=>`<button data-value="${v}" class="${o.labelPos===v?'active':''}">${l}</button>`).join('')}</div></div>`;
   if(o.kind==='accessory'||o.kind==='decor')html+=`<label class="lock-row"><input id="lockSelected" type="checkbox" ${o.locked?'checked':''}> <span>Verrouiller la position</span></label>`;
   html+=`<button class="danger" id="deleteSelected">Supprimer cet élément</button>`;inspectorFields.innerHTML=html;
-  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;let val=inp.value;if(['rot','height','width','zHeight','elevation','intensity','beam','focal'].includes(inp.dataset.k))val=Number(val);obj[inp.dataset.k]=val;if(inp.dataset.k==='intensity'){const u=inp.parentElement?.querySelector('.unit');if(u)u.textContent=`${val}%`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
+  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;const key=inp.dataset.k;let val=inp.value;if(['rot','height','width','zHeight','elevation','intensity','beam','focal','xMeters','yMeters'].includes(key))val=Number(val);if(key==='xMeters')obj.x=clamp(val*SCALE,0,1000);else if(key==='yMeters')obj.y=clamp(val*SCALE,0,620);else obj[key]=val;if(key==='intensity'){const u=inp.parentElement?.querySelector('.unit');if(u)u.textContent=`${val}%`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
   const camModel=document.getElementById('selectedCameraModel');if(camModel)camModel.onchange=()=>{const obj=selected();if(!obj||obj.kind!=='camera')return;obj.cameraModel=camModel.value;state.activePreviewCamera=obj.id;renderCanvas()};
   inspectorFields.querySelectorAll('[data-choice] button').forEach(btn=>btn.onclick=()=>{const obj=selected();if(!obj)return;obj[btn.parentElement.dataset.choice]=btn.dataset.value;render()});
+  const labelVisible=document.getElementById('labelVisibleSelected');if(labelVisible)labelVisible.onchange=()=>{o.labelVisible=labelVisible.checked;render()};
   const lock=document.getElementById('lockSelected');if(lock)lock.onchange=()=>{o.locked=lock.checked;render()};
   document.getElementById('deleteSelected').onclick=()=>{state.objects=state.objects.filter(x=>x.id!==o.id);if(state.activePreviewCamera===o.id)state.activePreviewCamera=state.objects.find(x=>x.kind==='camera')?.id||null;state.selected=null;render()};
   const change=document.getElementById('changeFixtureBtn');if(change)change.onclick=()=>openLightChooser(o.id);
@@ -440,14 +490,14 @@ function renderPreview(){
   previewTabs.classList.remove('hidden');cameraReadout.textContent=`${cams.length} caméras · sélectionne la vue à afficher.`;cams.forEach(c=>{const b=document.createElement('button');b.className='preview-tab'+(c.id===state.activePreviewCamera?' active':'');b.textContent=c.name;b.onclick=()=>{state.activePreviewCamera=c.id;renderPreview()};previewTabs.appendChild(b)});cameraMonitors.className='camera-monitors one';cameraMonitors.appendChild(makeMonitorCard(cams.find(c=>c.id===state.activePreviewCamera)||cams[0]));
 }
 
-function addSubject(){const n=state.objects.filter(o=>o.kind==='subject').length+1,o={id:uid('subj'),kind:'subject',name:`Sujet ${n}`,x:500+40*(n-1),y:300,rot:90,height:1.75,locked:false};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
-function addCamera(){const n=state.objects.filter(o=>o.kind==='camera').length+1,o={id:uid('cam'),kind:'camera',name:`Caméra ${String.fromCharCode(64+n)}`,x:500+(n-1)*55,y:520,rot:-90,height:1.55,cameraModel:'Sony FX3',focal:50,locked:false};state.objects.push(o);state.selected=o.id;state.activePreviewCamera=o.id;closeAddDialog();render()}
+function addSubject(){const n=state.objects.filter(o=>o.kind==='subject').length+1,o={id:uid('subj'),kind:'subject',name:`Sujet ${n}`,x:500+40*(n-1),y:300,rot:90,height:1.75,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
+function addCamera(){const n=state.objects.filter(o=>o.kind==='camera').length+1,o={id:uid('cam'),kind:'camera',name:`Caméra ${String.fromCharCode(64+n)}`,x:500+(n-1)*55,y:520,rot:-90,height:1.55,cameraModel:'Sony FX3',focal:50,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;state.activePreviewCamera=o.id;closeAddDialog();render()}
 function addLightFromPreset(p,replaceId=null){
   if(replaceId){const o=state.objects.find(x=>x.id===replaceId);if(o){const mod=o.modifier||'none';Object.assign(o,{name:p.name,brand:p.brand,family:p.family,form:p.form,short:p.short,beam:p.beam,aspect:p.aspect,length:p.length,modifier:supportsSoftbox({kind:'light',form:p.form})?mod:'none'});state.selected=o.id;closeAddDialog();render();return}}
-  const n=state.objects.filter(o=>o.kind==='light').length,o={id:uid('light'),kind:'light',name:p.name,brand:p.brand,family:p.family,form:p.form,short:p.short,x:245+(n%5)*72,y:235+(n%3)*75,rot:0,beam:p.beam,intensity:50,height:2,aspect:p.aspect,length:p.length,modifier:'none',locked:false};state.objects.push(o);state.selected=o.id;closeAddDialog();render();
+  const n=state.objects.filter(o=>o.kind==='light').length,o={id:uid('light'),kind:'light',name:p.name,brand:p.brand,family:p.family,form:p.form,short:p.short,x:245+(n%5)*72,y:235+(n%3)*75,rot:0,beam:p.beam,intensity:50,height:2,aspect:p.aspect,length:p.length,modifier:'none',locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;closeAddDialog();render();
 }
-function addAccessory(p){const n=state.objects.filter(o=>o.kind==='accessory').length,o={id:uid('acc'),kind:'accessory',type:p.type,name:p.name,short:p.short,x:360+(n%4)*80,y:190+(n%3)*70,rot:0,width:p.width,height:p.height,zHeight:p.height,elevation:p.type==='borniol'?.2:.35,locked:false};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
-function addDecor(p){const n=state.objects.filter(o=>o.kind==='decor').length,zHeight=p.type==='wall'?2.5:p.type==='door'?2.04:p.type==='window'?1.2:.75,elevation=p.type==='window'?.9:0,o={id:uid('decor'),kind:'decor',type:p.type,name:p.name,x:430+(n%4)*90,y:160+(n%3)*80,rot:0,width:p.width,height:p.height,zHeight,elevation,locked:false};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
+function addAccessory(p){const n=state.objects.filter(o=>o.kind==='accessory').length,o={id:uid('acc'),kind:'accessory',type:p.type,name:p.name,short:p.short,x:360+(n%4)*80,y:190+(n%3)*70,rot:0,width:p.width,height:p.height,zHeight:p.height,elevation:p.type==='borniol'?.2:.35,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
+function addDecor(p){const n=state.objects.filter(o=>o.kind==='decor').length,zHeight=p.type==='wall'?2.5:p.type==='door'?2.04:p.type==='window'?1.2:.75,elevation=p.type==='window'?.9:0,o={id:uid('decor'),kind:'decor',type:p.type,name:p.name,x:430+(n%4)*90,y:160+(n%3)*80,rot:0,width:p.width,height:p.height,zHeight,elevation,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
 
 function openAddDialog(){replaceLightId=null;showKinds();if(typeof addDialog.showModal==='function')addDialog.showModal();else addDialog.setAttribute('open','')}
 function closeAddDialog(){if(addDialog.open&&typeof addDialog.close==='function')addDialog.close();else addDialog.removeAttribute('open');replaceLightId=null}
@@ -475,22 +525,82 @@ document.getElementById('openAddBtn').onclick=openAddDialog;document.getElementB
 addKinds.querySelectorAll('[data-kind]').forEach(btn=>btn.onclick=()=>{const k=btn.dataset.kind;if(k==='light')openLightChooser();else if(k==='subject')addSubject();else if(k==='camera')addCamera();else openSimpleChooser(k)});
 addDialog.addEventListener('click',e=>{if(e.target===addDialog)closeAddDialog()});
 
-document.getElementById('saveBtn').onclick=()=>{localStorage.setItem('bos-plan-feu-v05',JSON.stringify(state));flash('Plan sauvé')};
-document.getElementById('resetBtn').onclick=()=>{if(confirm('Réinitialiser le plan ?')){['bos-plan-feu-v05','bos-plan-feu-v04','bos-plan-feu-v03','bos-plan-feu-v02','bos-plan-feu-v01'].forEach(k=>localStorage.removeItem(k));seed();render()}};
+function populateFolderSelect(){
+  folderSelect.innerHTML=library.folders.map(f=>`<option value="${esc(f.id)}" ${f.id===state.folderId?'selected':''}>${esc(f.name)}</option>`).join('');
+}
+function renderLibraryList(){
+  populateFolderSelect();planNameInput.value=state.planName||'Plan sans titre';
+  planLibraryList.innerHTML='';
+  library.folders.forEach(folder=>{
+    const box=document.createElement('div');box.className='folder-block';
+    const title=document.createElement('div');title.className='folder-title';title.textContent=`📁 ${folder.name}`;box.appendChild(title);
+    const plans=library.plans.filter(p=>p.folderId===folder.id).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    if(!plans.length){const empty=document.createElement('div');empty.className='folder-empty';empty.textContent='Aucun plan dans ce dossier.';box.appendChild(empty)}
+    plans.forEach(rec=>{
+      const row=document.createElement('div');row.className='plan-row';
+      row.innerHTML=`<div class="plan-row-main"><strong>${esc(rec.name)}</strong><small>${formatSavedDate(rec.updatedAt)}${rec.id===state.planId?' · plan ouvert':''}</small></div><div class="plan-row-actions"><button class="primary-mini" data-act="open">Ouvrir</button><button data-act="duplicate">Dupliquer</button><button class="danger-mini" data-act="delete">Supprimer</button></div>`;
+      row.querySelector('[data-act="open"]').onclick=()=>openLibraryPlan(rec.id);
+      row.querySelector('[data-act="duplicate"]').onclick=()=>duplicateLibraryPlan(rec.id);
+      row.querySelector('[data-act="delete"]').onclick=()=>deleteLibraryPlan(rec.id);
+      box.appendChild(row);
+    });planLibraryList.appendChild(box);
+  });
+}
+function openLibraryDialog(){loadLibrary();ensureStateDefaults();renderLibraryList();if(typeof libraryDialog.showModal==='function')libraryDialog.showModal();else libraryDialog.setAttribute('open','')}
+function closeLibraryDialog(){if(libraryDialog.open&&typeof libraryDialog.close==='function')libraryDialog.close();else libraryDialog.removeAttribute('open')}
+function savePlanToLibrary(){
+  const name=(planNameInput.value||'').trim()||'Plan sans titre',folderId=folderSelect.value||library.folders[0].id;
+  state.planName=name;state.folderId=folderId;
+  if(!state.planId)state.planId=uid('plan');
+  let rec=library.plans.find(p=>p.id===state.planId);if(!rec){rec={id:state.planId};library.plans.push(rec)}
+  rec.name=name;rec.folderId=folderId;rec.updatedAt=Date.now();rec.state=snapshotState();persistLibrary();persistCurrent();renderLibraryList();flash('Plan enregistré');
+}
+function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;state=deepClone(rec.state);state.planId=rec.id;state.planName=rec.name;state.folderId=rec.folderId;ensureStateDefaults();state.objects.forEach(normalizeSceneObject);state.selected=null;if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null;persistCurrent();render();closeLibraryDialog()}
+function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
+function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
+function newPlan(){persistCurrent();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';seed();render();renderLibraryList()}
+function exportProject(){const payload={format:'BOS_PLAN_FEU',version:'0.6',exportedAt:new Date().toISOString(),plan:snapshotState()};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`${safeName(state.planName)}.bosplan.json`)}
+
+document.getElementById('libraryBtn').onclick=openLibraryDialog;
+document.getElementById('closeLibraryBtn').onclick=closeLibraryDialog;
+libraryDialog.addEventListener('click',e=>{if(e.target===libraryDialog)closeLibraryDialog()});
+document.getElementById('newFolderBtn').onclick=()=>{const name=prompt('Nom du nouveau dossier :');if(!name?.trim())return;const f={id:uid('folder'),name:name.trim()};library.folders.push(f);persistLibrary();state.folderId=f.id;renderLibraryList();folderSelect.value=f.id};
+document.getElementById('newPlanBtn').onclick=newPlan;
+document.getElementById('saveToLibraryBtn').onclick=savePlanToLibrary;
+document.getElementById('exportProjectBtn').onclick=exportProject;
+document.getElementById('saveBtn').onclick=()=>{if(!state.planId){openLibraryDialog();planNameInput.focus()}else{persistCurrent();flash('Plan sauvé')}};
+document.getElementById('resetBtn').onclick=()=>{if(confirm('Réinitialiser le contenu de ce plan ?')){const meta={planId:state.planId,planName:state.planName,folderId:state.folderId,snap:state.snap,labelsMode:state.labelsMode};seed();Object.assign(state,meta);render()}};
 function flash(txt){const b=document.getElementById('saveBtn'),old=b.textContent;b.textContent='✓ '+txt;setTimeout(()=>b.textContent=old,1200)}
+function inlineSvgStyles(original,clone){
+  const props=['fill','stroke','stroke-width','stroke-dasharray','stroke-linecap','stroke-linejoin','opacity','font-family','font-size','font-weight','letter-spacing','paint-order','color'];
+  const os=[original,...original.querySelectorAll('*')],cs=[clone,...clone.querySelectorAll('*')];
+  os.forEach((node,i)=>{const target=cs[i];if(!target)return;const st=getComputedStyle(node);const css=props.map(p=>`${p}:${st.getPropertyValue(p)}`).join(';');target.setAttribute('style',`${target.getAttribute('style')||''};${css}`)});
+}
 function exportPng(){
-  const clone=stage.cloneNode(true);clone.setAttribute('width','1400');clone.setAttribute('height','868');const serializer=new XMLSerializer(),source=serializer.serializeToString(clone),blob=new Blob([source],{type:'image/svg+xml;charset=utf-8'}),url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=1400;c.height=868;const ctx=c.getContext('2d');ctx.fillStyle='#fbfcfe';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);c.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='BOS_Plan_Feu.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)},'image/png')};img.src=url;
+  const clone=stage.cloneNode(true);clone.setAttribute('xmlns',NS);clone.setAttribute('width','1600');clone.setAttribute('height','992');clone.setAttribute('viewBox','0 0 1000 620');
+  inlineSvgStyles(stage,clone);
+  clone.querySelectorAll('.rotation-gizmo,.selection-ring,.selection-box,.hit').forEach(n=>n.remove());
+  const source=new XMLSerializer().serializeToString(clone),blob=new Blob([source],{type:'image/svg+xml;charset=utf-8'}),url=URL.createObjectURL(blob),img=new Image();
+  img.onload=()=>{const c=document.createElement('canvas');c.width=1600;c.height=992;const ctx=c.getContext('2d');ctx.fillStyle=getComputedStyle(document.querySelector('.stage-bg')).getPropertyValue('fill')||'#fbfcfe';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);c.toBlob(b=>{if(b)downloadBlob(b,`${safeName(state.planName)}_Plan_Feu.png`)},'image/png')};
+  img.onerror=()=>{URL.revokeObjectURL(url);alert("L’export PNG n’a pas pu être généré sur ce navigateur.")};img.src=url;
 }
 document.getElementById('exportBtn').onclick=exportPng;
+snapSelect.onchange=()=>{state.snap=Number(snapSelect.value)||0;renderCanvas()};
+labelsModeSelect.onchange=()=>{state.labelsMode=labelsModeSelect.value;renderCanvas()};
 function normalizeSceneObject(o){
   if(o.kind==='light')normalizeLightObject(o);
   if(o.kind==='camera')normalizeCameraObject(o);
   if(o.kind==='decor'){if(o.zHeight===undefined)o.zHeight=o.type==='wall'?2.5:o.type==='door'?2.04:o.type==='window'?1.2:.75;if(o.elevation===undefined)o.elevation=o.type==='window'?.9:0}
   if(o.kind==='accessory'){if(o.zHeight===undefined)o.zHeight=o.height||1.5;if(o.elevation===undefined)o.elevation=o.type==='borniol'?.2:.35;if(!o.short)o.short=o.type==='diffusion'?'DIFF':o.type==='negative'?'NEG':o.type==='reflector'?'REF':'BOR'}
-  if(o.locked===undefined)o.locked=false;return o;
+  if(o.locked===undefined)o.locked=false;if(o.labelVisible===undefined)o.labelVisible=true;if(!o.labelPos)o.labelPos='auto';return o;
 }
 function load(){
-  try{const raw=localStorage.getItem('bos-plan-feu-v05')||localStorage.getItem('bos-plan-feu-v04')||localStorage.getItem('bos-plan-feu-v03')||localStorage.getItem('bos-plan-feu-v02')||localStorage.getItem('bos-plan-feu-v01'),saved=JSON.parse(raw);if(saved&&Array.isArray(saved.objects)){state=saved;state.objects.forEach(normalizeSceneObject);if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null}else seed()}catch{seed()}
-  if(!cameras[state.cameraModel])state.cameraModel='Sony FX3';state.focal=Number(state.focal)||50;render();
+  loadLibrary();
+  try{
+    const raw=localStorage.getItem(CURRENT_KEY)||localStorage.getItem('bos-plan-feu-v05')||localStorage.getItem('bos-plan-feu-v04')||localStorage.getItem('bos-plan-feu-v03')||localStorage.getItem('bos-plan-feu-v02')||localStorage.getItem('bos-plan-feu-v01');
+    const saved=raw&&JSON.parse(raw);
+    if(saved&&Array.isArray(saved.objects)){state=saved;if(!state.planName)state.planName=localStorage.getItem(CURRENT_KEY)?'Plan sans titre':'Plan importé V0.5';state.objects.forEach(normalizeSceneObject);if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null}else seed();
+  }catch{seed()}
+  ensureStateDefaults();if(!cameras[state.cameraModel])state.cameraModel='Sony FX3';state.focal=Number(state.focal)||50;updatePlanBadge();render();
 }
 window.addEventListener('resize',renderPreview);load();
