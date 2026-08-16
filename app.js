@@ -68,12 +68,16 @@ function populateSelects(){
 
 function svgEl(tag,attrs={}){const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);return e}
 
-function render(){
+function renderCanvas(){
   beamsLayer.innerHTML=''; objectsLayer.innerHTML='';
   state.objects.filter(o=>o.kind==='camera').forEach(drawCameraFov);
   state.objects.filter(o=>o.kind==='light').forEach(drawLightBeam);
   state.objects.forEach(drawObject);
-  renderInspector(); renderPreview();
+  renderPreview();
+}
+function render(){
+  renderCanvas();
+  renderInspector();
 }
 
 function drawCameraFov(o){
@@ -117,8 +121,23 @@ function drawObject(o){
   const t=svgEl('text',{class:'object-label','text-anchor':'middle'});t.textContent=o.kind==='light'?o.name:o.name;label.appendChild(t);
   if(o.kind==='light') {const st=svgEl('text',{class:'object-sub','text-anchor':'middle',y:17});st.textContent=`${o.intensity}%`;label.appendChild(st)}
   g.appendChild(label);
+
+  // Poignée d'orientation : visible uniquement sur l'élément sélectionné.
+  if(state.selected===o.id){
+    const gizmo=svgEl('g',{class:'rotation-gizmo'});
+    gizmo.appendChild(svgEl('line',{x1:35,y1:0,x2:62,y2:0,class:'rotation-stem'}));
+    const handle=svgEl('circle',{cx:70,cy:0,r:12,class:'rotation-handle','data-id':o.id});
+    gizmo.appendChild(handle);
+    const arrow=svgEl('path',{d:'M 65 -4 A 6 6 0 1 1 65 4 M 65 4 L 62 1 M 65 4 L 68 1',class:'rotation-icon'});
+    gizmo.appendChild(arrow);
+    const angle=svgEl('text',{x:70,y:-19,class:'rotation-angle','text-anchor':'middle'});angle.textContent=`${Math.round(o.rot)}°`;gizmo.appendChild(angle);
+    handle.addEventListener('pointerdown',startRotate);
+    arrow.addEventListener('pointerdown',startRotate);
+    gizmo.addEventListener('pointerdown',e=>e.stopPropagation());
+    g.appendChild(gizmo);
+  }
+
   g.addEventListener('pointerdown',startDrag);
-  g.addEventListener('click',e=>{e.stopPropagation();selectObject(o.id)});
   objectsLayer.appendChild(g);
 }
 
@@ -127,17 +146,49 @@ function pointerToStage(e){
 }
 function startDrag(e){
   e.preventDefault(); e.stopPropagation();
-  const id=e.currentTarget.dataset.id;selectObject(id);
-  const o=state.objects.find(x=>x.id===id),p=pointerToStage(e);
-  drag={id,dx:p.x-o.x,dy:p.y-o.y,pointerId:e.pointerId};
+  const id=e.currentTarget.dataset.id;
+  const o=state.objects.find(x=>x.id===id); if(!o)return;
+  const p=pointerToStage(e);
+  drag={mode:'move',id,dx:p.x-o.x,dy:p.y-o.y,pointerId:e.pointerId};
+  stage.setPointerCapture?.(e.pointerId);
+  if(state.selected!==id){state.selected=id;render();}
+}
+function startRotate(e){
+  e.preventDefault(); e.stopPropagation();
+  const id=e.currentTarget.dataset.id || e.currentTarget.closest?.('[data-id]')?.dataset.id;
+  const o=state.objects.find(x=>x.id===id); if(!o)return;
+  state.selected=id;
+  drag={mode:'rotate',id,pointerId:e.pointerId};
   stage.setPointerCapture?.(e.pointerId);
 }
 stage.addEventListener('pointermove',e=>{
-  if(!drag)return;const o=state.objects.find(x=>x.id===drag.id);if(!o)return;
-  const p=pointerToStage(e);o.x=clamp(p.x-drag.dx,35,965);o.y=clamp(p.y-drag.dy,35,585);render();
+  if(!drag)return;
+  const o=state.objects.find(x=>x.id===drag.id);if(!o)return;
+  const p=pointerToStage(e);
+  if(drag.mode==='rotate'){
+    o.rot=deg(Math.atan2(p.y-o.y,p.x-o.x));
+    // Normalisation lisible entre -180 et 180°.
+    if(o.rot>180)o.rot-=360;if(o.rot<=-180)o.rot+=360;
+  }else{
+    o.x=clamp(p.x-drag.dx,35,965);o.y=clamp(p.y-drag.dy,35,585);
+  }
+  renderCanvas();
 });
-stage.addEventListener('pointerup',()=>drag=null);stage.addEventListener('pointercancel',()=>drag=null);
-stage.addEventListener('click',()=>{state.selected=null;render()});
+function endGesture(e){
+  if(!drag)return;
+  try{stage.releasePointerCapture?.(drag.pointerId)}catch{}
+  drag=null;
+  renderInspector();
+}
+stage.addEventListener('pointerup',endGesture);
+stage.addEventListener('pointercancel',endGesture);
+
+// Désélection uniquement lorsqu'on clique réellement sur une zone vide du plan.
+// L'ancien écouteur "click" effaçait parfois la sélection après le pointerdown sur ordinateur.
+stage.addEventListener('pointerdown',e=>{
+  if(e.target.closest?.('.object'))return;
+  if(state.selected!==null){state.selected=null;render();}
+});
 
 function selectObject(id){state.selected=id;render()}
 function selected(){return state.objects.find(o=>o.id===state.selected)}
@@ -160,7 +211,12 @@ function renderInspector(){
   html+=`<button class="danger" id="deleteSelected">Supprimer cet élément</button>`;
   inspectorFields.innerHTML=html;
   inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{
-    const obj=selected();let val=inp.value;if(['rot','height','intensity','beam'].includes(inp.dataset.k))val=Number(val);obj[inp.dataset.k]=val;render();
+    const obj=selected();if(!obj)return;
+    let val=inp.value;if(['rot','height','intensity','beam'].includes(inp.dataset.k))val=Number(val);
+    obj[inp.dataset.k]=val;
+    // On ne reconstruit pas l'inspecteur pendant la saisie : il reste ouvert et garde le focus.
+    if(inp.dataset.k==='intensity'){const u=inp.parentElement?.querySelector('.unit');if(u)u.textContent=`${val}%`;}
+    renderCanvas();
   }));
   document.getElementById('deleteSelected').onclick=()=>{state.objects=state.objects.filter(x=>x.id!==o.id);state.selected=null;render()};
 }
@@ -214,8 +270,8 @@ function addLight(){const name=document.getElementById('lightPreset').value;cons
 
 document.getElementById('addSubjectBtn').onclick=addSubject;document.getElementById('addCameraBtn').onclick=addCamera;document.getElementById('addLightBtn').onclick=addLight;
 focalInput.addEventListener('input',()=>{state.focal=clamp(Number(focalInput.value)||50,12,300);render()});cameraModel.addEventListener('change',()=>{state.cameraModel=cameraModel.value;render()});
-document.getElementById('saveBtn').onclick=()=>{localStorage.setItem('bos-plan-feu-v01',JSON.stringify(state));flash('Plan sauvé sur cet appareil')};
-document.getElementById('resetBtn').onclick=()=>{if(confirm('Réinitialiser le plan ?')){localStorage.removeItem('bos-plan-feu-v01');seed();syncCameraUi();render()}};
+document.getElementById('saveBtn').onclick=()=>{localStorage.setItem('bos-plan-feu-v02',JSON.stringify(state));flash('Plan sauvé sur cet appareil')};
+document.getElementById('resetBtn').onclick=()=>{if(confirm('Réinitialiser le plan ?')){localStorage.removeItem('bos-plan-feu-v02');localStorage.removeItem('bos-plan-feu-v01');seed();syncCameraUi();render()}};
 function flash(txt){const old=document.getElementById('saveBtn').textContent;document.getElementById('saveBtn').textContent='✓ '+txt;setTimeout(()=>document.getElementById('saveBtn').textContent=old,1200)}
 
 function exportPng(){
@@ -228,7 +284,7 @@ document.getElementById('exportBtn').onclick=exportPng;
 
 function syncCameraUi(){cameraModel.value=state.cameraModel;focalInput.value=state.focal}
 function load(){
-  try{const saved=JSON.parse(localStorage.getItem('bos-plan-feu-v01'));if(saved&&Array.isArray(saved.objects))state=saved;else seed()}catch{seed()}
+  try{const raw=localStorage.getItem('bos-plan-feu-v02')||localStorage.getItem('bos-plan-feu-v01');const saved=JSON.parse(raw);if(saved&&Array.isArray(saved.objects))state=saved;else seed()}catch{seed()}
   if(!cameras[state.cameraModel])state.cameraModel='Sony FX3'; state.focal=Number(state.focal)||50;
   populateSelects();syncCameraUi();render();
 }

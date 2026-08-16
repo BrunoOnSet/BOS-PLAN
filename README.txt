@@ -1,15 +1,14 @@
-BOS · PLAN FEU — V0.1
+BOS · PLAN FEU — V0.2
 
-Prototype fonctionnel :
-- Plan 2D vu du dessus
-- Caméra(s), personnages et projecteurs déplaçables au doigt / à la souris
-- Rotation et réglages dans le panneau latéral
-- Presets Amaran
-- Cône de champ caméra calculé selon capteur + focale
-- Aperçu cadrage en bas, calculé à partir de la position réelle caméra/sujet
-- Sauvegarde locale
-- Export PNG du plan
+Nouveautés :
+- correction de la sélection qui pouvait se désactiver sur ordinateur ;
+- l'inspecteur de droite reste ouvert pendant la sélection et la saisie ;
+- poignée bleue de rotation directement sur le plan ;
+- déplacement et rotation mettent à jour la vue caméra en direct ;
+- migration automatique des sauvegardes V0.1.
 
-Important : le cône des projecteurs est volontairement schématique. Il ne simule ni exposition, ni ombres, ni rendu photoréaliste.
-
-Ouvrir index.html dans un navigateur ou publier le dossier sur GitHub Pages.
+Utilisation :
+1. Clique ou touche un élément pour le sélectionner.
+2. Glisse l'élément pour le déplacer.
+3. Glisse la poignée bleue située devant l'élément pour l'orienter.
+4. Les valeurs précises peuvent toujours être saisies dans Réglages.
