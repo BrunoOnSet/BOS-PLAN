@@ -21,7 +21,9 @@ const simpleGrid=document.getElementById('simpleGrid');
 const simpleLabel=document.getElementById('simpleLabel');
 const snapSelect=document.getElementById('snapSelect');
 const labelsModeSelect=document.getElementById('labelsModeSelect');
-const beamsModeSelect=document.getElementById('beamsModeSelect');
+const toggleBeamsBtn=document.getElementById('toggleBeamsBtn');
+const gridOpacityRange=document.getElementById('gridOpacityRange');
+const gridOpacityValue=document.getElementById('gridOpacityValue');
 const currentPlanBadge=document.getElementById('currentPlanBadge');
 const libraryDialog=document.getElementById('libraryDialog');
 const planNameInput=document.getElementById('planNameInput');
@@ -144,7 +146,7 @@ const decorCatalog=[
 
 const CURRENT_KEY='bos-plan-feu-v06-current';
 const LIB_KEY='bos-plan-feu-library-v06';
-let state={objects:[],selected:null,activePreviewCamera:null,cameraModel:'Sony FX3',focal:50,snap:.25,labelsMode:'full',beamsVisible:true,planId:null,planName:'Plan sans titre',folderId:'folder_general'};
+let state={objects:[],selected:null,activePreviewCamera:null,cameraModel:'Sony FX3',focal:50,snap:.25,labelsMode:'full',beamsVisible:true,gridOpacity:.45,planId:null,planName:'Plan sans titre',folderId:'folder_general'};
 let library={folders:[{id:'folder_general',name:'Plans'}],plans:[]};
 let drag=null;
 let replaceLightId=null;
@@ -168,6 +170,7 @@ function ensureStateDefaults(){
   state.snap=[0,.1,.25,.5,1].includes(Number(state.snap))?Number(state.snap):.25;
   if(!['full','names','hidden'].includes(state.labelsMode))state.labelsMode='full';
   if(state.beamsVisible===undefined)state.beamsVisible=true;
+  state.gridOpacity=clamp(Number(state.gridOpacity)||.45,.1,1);
   state.planName=state.planName||'Plan sans titre';
   state.folderId=state.folderId||library.folders[0]?.id||'folder_general';
   if(state.planId===undefined)state.planId=null;
@@ -177,7 +180,8 @@ function loadLibrary(){
   if(!library.folders.length)library.folders=[{id:'folder_general',name:'Plans'}];
 }
 function persistLibrary(){localStorage.setItem(LIB_KEY,JSON.stringify(library))}
-function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(snapSelect)snapSelect.value=String(Number(state.snap)||0);if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(beamsModeSelect)beamsModeSelect.value=state.beamsVisible===false?'hidden':'visible'}
+function updateGridOpacity(){const v=clamp(Number(state.gridOpacity)||.45,.1,1);state.gridOpacity=v;const small=v;const large=clamp(.22+v*.9,.32,1);stage.style.setProperty('--grid-small-opacity',small.toFixed(2));stage.style.setProperty('--grid-large-opacity',large.toFixed(2));if(gridOpacityRange)gridOpacityRange.value=String(Math.round(v*100));if(gridOpacityValue)gridOpacityValue.textContent=`${Math.round(v*100)} %`}
+function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(snapSelect)snapSelect.value=String(Number(state.snap)||0);if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(toggleBeamsBtn){const on=state.beamsVisible!==false;toggleBeamsBtn.classList.toggle('active',on);toggleBeamsBtn.textContent=on?'Faisceaux ON':'Faisceaux OFF';toggleBeamsBtn.setAttribute('aria-pressed',String(on))}updateGridOpacity()}
 function snapshotState(){const copy=deepClone(state);copy.selected=null;return copy}
 function persistCurrent(){
   try{localStorage.setItem(CURRENT_KEY,JSON.stringify(snapshotState()));if(state.planId){const rec=library.plans.find(p=>p.id===state.planId);if(rec){rec.name=state.planName;rec.folderId=state.folderId;rec.updatedAt=Date.now();rec.state=snapshotState();persistLibrary()}}}catch(e){console.warn('Autosave BOS',e)}
@@ -367,7 +371,7 @@ function drawObject(o){
     }
     g.appendChild(label);
   }
-  if(state.selected===o.id&&!o.locked&&!(isOpening(o)&&o.wallId)){
+  if(state.selected===o.id&&!o.locked){
     const gizmo=svgEl('g',{class:'rotation-gizmo'});gizmo.appendChild(svgEl('line',{x1:40,y1:0,x2:65,y2:0,class:'rotation-stem'}));const handle=svgEl('circle',{cx:74,cy:0,r:12,class:'rotation-handle','data-id':o.id});gizmo.appendChild(handle);const arrow=svgEl('path',{d:'M 69 -4 A 6 6 0 1 1 69 4 M 69 4 L 66 1 M 69 4 L 72 1',class:'rotation-icon','data-id':o.id});gizmo.appendChild(arrow);const angle=svgEl('text',{x:74,y:-19,class:'rotation-angle','text-anchor':'middle'});angle.textContent=`${Math.round(o.rot)}°`;gizmo.appendChild(angle);handle.addEventListener('pointerdown',startRotate);arrow.addEventListener('pointerdown',startRotate);gizmo.addEventListener('pointerdown',e=>e.stopPropagation());g.appendChild(gizmo);
   }
   g.addEventListener('pointerdown',startDrag);objectsLayer.appendChild(g);
@@ -381,19 +385,17 @@ function startDrag(e){
   if(o.locked){renderInspector();return}
   const p=pointerToStage(e);drag={mode:'move',id,dx:p.x-o.x,dy:p.y-o.y,pointerId:e.pointerId};stage.setPointerCapture?.(e.pointerId);
 }
-function startRotate(e){e.preventDefault();e.stopPropagation();const id=e.currentTarget.dataset.id||e.currentTarget.closest?.('[data-id]')?.dataset.id,o=state.objects.find(x=>x.id===id);if(!o||o.locked||isOpening(o)&&o.wallId)return;state.selected=id;if(o.kind==='camera')state.activePreviewCamera=o.id;drag={mode:'rotate',id,pointerId:e.pointerId};stage.setPointerCapture?.(e.pointerId)}
+function startRotate(e){e.preventDefault();e.stopPropagation();const id=e.currentTarget.dataset.id||e.currentTarget.closest?.('[data-id]')?.dataset.id,o=state.objects.find(x=>x.id===id);if(!o||o.locked)return;state.selected=id;if(o.kind==='camera')state.activePreviewCamera=o.id;drag={mode:'rotate',id,pointerId:e.pointerId};stage.setPointerCapture?.(e.pointerId)}
 stage.addEventListener('pointermove',e=>{
   if(!drag)return;const o=state.objects.find(x=>x.id===drag.id);if(!o)return;const p=pointerToStage(e);
   if(drag.mode==='rotate'){
-    o.rot=deg(Math.atan2(p.y-o.y,p.x-o.x));if(o.rot>180)o.rot-=360;if(o.rot<=-180)o.rot+=360;if(o.kind==='decor'&&o.type==='wall')syncWallChildren(o);
+    o.rot=deg(Math.atan2(p.y-o.y,p.x-o.x));if(o.rot>180)o.rot-=360;if(o.rot<=-180)o.rot+=360;
   } else {
     const targetX=clamp(snapValue(p.x-drag.dx),35,965),targetY=clamp(snapValue(p.y-drag.dy),35,585);
-    if(isOpening(o)&&o.wallId){const wall=state.objects.find(w=>w.id===o.wallId&&w.type==='wall');if(wall){const pl=openingPlacementOnWall(o,wall,targetX,targetY);o.wallOffset=pl.clamped/SCALE;o.x=pl.x;o.y=pl.y;o.rot=wall.rot||0}else{detachOpening(o);o.x=targetX;o.y=targetY}}
-    else{o.x=targetX;o.y=targetY}
-    if(o.kind==='decor'&&o.type==='wall')syncWallChildren(o);
+    o.x=targetX;o.y=targetY;
   }renderCanvas();
 });
-function endGesture(){if(!drag)return;const o=state.objects.find(x=>x.id===drag.id);try{stage.releasePointerCapture?.(drag.pointerId)}catch{}if(o&&o.kind==='decor'&&o.type==='wall')syncWallChildren(o);drag=null;render()}
+function endGesture(){if(!drag)return;try{stage.releasePointerCapture?.(drag.pointerId)}catch{}drag=null;render()}
 stage.addEventListener('pointerup',endGesture);stage.addEventListener('pointercancel',endGesture);
 stage.addEventListener('pointerdown',e=>{if(e.target.closest?.('.object'))return;if(state.selected!==null){state.selected=null;render()}});
 
@@ -410,8 +412,8 @@ function renderInspector(){
     html+=`<div class="field"><label>Caméra / capteur</label><select id="selectedCameraModel">${Object.keys(cameras).map(name=>`<option value="${esc(name)}" ${o.cameraModel===name?'selected':''}>${esc(name)}</option>`).join('')}</select></div>`;
     html+=`<div class="field-grid"><div class="field"><label>Focale</label><div class="field-inline"><input data-k="focal" type="number" min="12" max="300" step="1" value="${o.focal}"><span class="unit">mm</span></div></div><div class="field"><label>Hauteur caméra</label><div class="field-inline"><input data-k="height" type="number" min="0.2" max="4" step="0.05" value="${o.height}"><span class="unit">m</span></div></div></div>`;
   }
-  html+=`<div class="field-grid"><div class="field"><label>Position X</label><div class="field-inline"><input data-k="xMeters" type="number" min="0" max="10" step="0.01" value="${(o.x/SCALE).toFixed(2)}"><span class="unit">m</span></div></div><div class="field"><label>Position Y</label><div class="field-inline"><input data-k="yMeters" type="number" min="0" max="6.2" step="0.01" value="${(o.y/SCALE).toFixed(2)}"><span class="unit">m</span></div></div></div><div class="position-grid-note">Origine X/Y : coin supérieur gauche du plan.</div>`;
-  html+=`<div class="field-grid"><div class="field"><label>Rotation</label><div class="field-inline"><input data-k="rot" type="number" min="-180" max="180" value="${Math.round(o.rot)}"><span class="unit">°</span></div></div>`;
+  html+=`<div class="direct-edit-note">Position et orientation : règle-les directement sur le plan du dessus.</div>`;
+  html+=`<div class="field-grid">`;
   if(o.kind==='subject')html+=`<div class="field"><label>Taille</label><div class="field-inline"><input data-k="height" type="number" min="1" max="2.2" step="0.01" value="${o.height}"><span class="unit">m</span></div></div>`;
   else if(o.kind==='light')html+=`<div class="field"><label>Hauteur source</label><div class="field-inline"><input data-k="height" type="number" min="0" max="5" step="0.1" value="${o.height}"><span class="unit">m</span></div></div>`;
   else if(o.kind==='accessory'||o.kind==='decor')html+=`<div class="field"><label>Largeur</label><div class="field-inline"><input data-k="width" type="number" min="0.1" max="20" step="0.1" value="${o.width}"><span class="unit">m</span></div></div>`;
@@ -430,20 +432,15 @@ function renderInspector(){
     if(o.modifier&&o.modifier!=='none')html+=`<div class="field"><label>${o.modifier.startsWith('umbrella')?'Diamètre parapluie':'Taille accessoire'}</label><div class="field-inline"><input data-k="modifierSize" type="number" min="0.3" max="3" step="0.05" value="${Number(o.modifierSize||.9).toFixed(2)}"><span class="unit">m</span></div></div>`;
     html+=`<label class="lock-row"><input id="beamVisibleSelected" type="checkbox" ${o.beamVisible!==false?'checked':''}> <span>Afficher le faisceau de ce projecteur</span></label>`;
     html+=`<div class="field"><label>Intensité</label><div class="field-inline"><input data-k="intensity" type="range" min="0" max="100" value="${o.intensity}"><span class="unit">${o.intensity}%</span></div></div>`;
-    html+=`<div class="field"><label>Ouverture du cône</label><div class="field-inline"><input data-k="beam" type="number" min="4" max="179" value="${o.beam}"><span class="unit">°</span></div></div>`;
+    html+=`<div class="field"><label>Ouverture du cône (schématique)</label><div class="field-inline"><input data-k="beam" type="number" min="4" max="179" value="${o.beam}"><span class="unit">°</span></div><small class="field-help">Valeur indicative pour le dessin du plan, pas une donnée photométrique garantie.</small></div>`;
     html+=`<div class="field"><label>Distance au sujet le plus proche</label><div class="field-inline"><input disabled value="${nearestSubjectDistance(o).toFixed(2)}"><span class="unit">m</span></div></div>`;
     html+=`<button class="change-fixture" id="changeFixtureBtn">Changer de modèle</button>`;
-  }
-  if(isOpening(o)){
-    const walls=state.objects.filter(w=>w.kind==='decor'&&w.type==='wall');
-    const near=!o.wallId?findNearbyWall(o,o.x,o.y,.35):null;
-    html+=`<div class="field-divider"></div><div class="field opening-wall-field"><label>Ouverture dans un mur</label><select id="openingWallSelect"><option value="">Libre — aucune association</option>${walls.map(w=>`<option value="${esc(w.id)}" ${o.wallId===w.id?'selected':''}>${esc(w.name)}</option>`).join('')}</select><small class="field-help">L'association est volontaire : la fenêtre/porte reste libre tant que tu ne choisis pas un mur.</small>${near?`<button class="change-fixture" id="attachNearestWallBtn">Intégrer au mur proche : ${esc(near.wall.name)}</button>`:''}</div>`;
   }
   if(o.labelVisible===undefined)o.labelVisible=true;if(!o.labelPos)o.labelPos='auto';
   html+=`<div class="field-divider"></div><div class="field"><label>Informations sur le plan</label><label class="label-row"><span>Afficher les infos</span><input id="labelVisibleSelected" type="checkbox" ${o.labelVisible!==false?'checked':''}></label><div class="inspector-choice five" data-choice="labelPos">${[['auto','Auto'],['top','Haut'],['bottom','Bas'],['left','Gauche'],['right','Droite']].map(([v,l])=>`<button data-value="${v}" class="${o.labelPos===v?'active':''}">${l}</button>`).join('')}</div></div>`;
   if(o.kind==='accessory'||o.kind==='decor')html+=`<label class="lock-row"><input id="lockSelected" type="checkbox" ${o.locked?'checked':''}> <span>Verrouiller la position</span></label>`;
   html+=`<button class="danger" id="deleteSelected">Supprimer cet élément</button>`;inspectorFields.innerHTML=html;
-  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;const key=inp.dataset.k;let val=inp.value;if(['rot','height','width','zHeight','elevation','intensity','beam','focal','xMeters','yMeters','modifierSize'].includes(key))val=Number(val);if(isOpening(obj)&&obj.wallId&&(key==='xMeters'||key==='yMeters')){const wall=state.objects.find(w=>w.id===obj.wallId&&w.type==='wall');if(wall){const tx=key==='xMeters'?clamp(val*SCALE,0,1000):obj.x,ty=key==='yMeters'?clamp(val*SCALE,0,620):obj.y,p=openingPlacementOnWall(obj,wall,tx,ty);obj.wallOffset=p.clamped/SCALE;syncOpeningToWall(obj)}}else if(key==='xMeters')obj.x=clamp(val*SCALE,0,1000);else if(key==='yMeters')obj.y=clamp(val*SCALE,0,620);else obj[key]=val;if(obj.kind==='decor'&&obj.type==='wall')syncWallChildren(obj);if(isOpening(obj)&&obj.wallId)syncOpeningToWall(obj);if(key==='intensity'){const u=inp.parentElement?.querySelector('.unit');if(u)u.textContent=`${val}%`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
+  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;const key=inp.dataset.k;let val=inp.value;if(['height','width','zHeight','elevation','intensity','beam','focal','modifierSize'].includes(key))val=Number(val);obj[key]=val;if(key==='intensity'){const u=inp.parentElement?.querySelector('.unit');if(u)u.textContent=`${val}%`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
   const camModel=document.getElementById('selectedCameraModel');if(camModel)camModel.onchange=()=>{const obj=selected();if(!obj||obj.kind!=='camera')return;obj.cameraModel=camModel.value;state.activePreviewCamera=obj.id;renderCanvas()};
   inspectorFields.querySelectorAll('[data-choice] button').forEach(btn=>btn.onclick=()=>{const obj=selected();if(!obj)return;const key=btn.parentElement.dataset.choice;obj[key]=btn.dataset.value;if(key==='modifier'){if(obj.modifier==='softbox'&&!obj.modifierSize)obj.modifierSize=.9;if(obj.modifier?.startsWith('umbrella'))obj.modifierSize=Number(obj.modifierSize)||1.05}render()});
   const beamVisible=document.getElementById('beamVisibleSelected');if(beamVisible)beamVisible.onchange=()=>{o.beamVisible=beamVisible.checked;renderCanvas()};
@@ -451,8 +448,6 @@ function renderInspector(){
   const lock=document.getElementById('lockSelected');if(lock)lock.onchange=()=>{o.locked=lock.checked;render()};
   document.getElementById('deleteSelected').onclick=()=>{state.objects=state.objects.filter(x=>x.id!==o.id);if(state.activePreviewCamera===o.id)state.activePreviewCamera=state.objects.find(x=>x.kind==='camera')?.id||null;state.selected=null;render()};
   const change=document.getElementById('changeFixtureBtn');if(change)change.onclick=()=>openLightChooser(o.id);
-  const openingWallSelect=document.getElementById('openingWallSelect');if(openingWallSelect)openingWallSelect.onchange=()=>{const obj=selected();if(!obj||!isOpening(obj))return;const wallId=openingWallSelect.value;if(!wallId){detachOpening(obj);render();return}const wall=state.objects.find(w=>w.id===wallId&&w.type==='wall');if(wall){attachOpeningToWall(obj,wall,obj.x,obj.y);render()}};
-  const attachNearestWallBtn=document.getElementById('attachNearestWallBtn');if(attachNearestWallBtn)attachNearestWallBtn.onclick=()=>{const obj=selected();if(!obj||!isOpening(obj))return;const near=findNearbyWall(obj,obj.x,obj.y,.35);if(near){attachOpeningToWall(obj,near.wall,obj.x,obj.y);render()}};
 }
 function nearestSubjectDistance(o){const ss=state.objects.filter(x=>x.kind==='subject');if(!ss.length)return 0;return Math.min(...ss.map(s=>dist(o,s)))}
 
@@ -482,11 +477,9 @@ function syncOpeningToWall(o){
 }
 function syncWallChildren(wall){state.objects.filter(o=>o.wallId===wall.id).forEach(syncOpeningToWall)}
 function migrateOpeningBindings(){
-  // V0.7 associait automatiquement les portes/fenêtres aux murs.
-  // V0.8 supprime ce comportement : aucun déplacement automatique sans action explicite.
-  if(Number(state.openingBindingVersion||0)>=2)return;
+  // V1.0 simplifie le décor : fenêtres et portes restent toujours des objets libres.
   state.objects.filter(isOpening).forEach(detachOpening);
-  state.openingBindingVersion=2;
+  state.openingBindingVersion=3;
 }
 
 function cameraSpace(cam,obj){const dx=(obj.x-cam.x)/SCALE,dy=(obj.y-cam.y)/SCALE,a=-rad(cam.rot);return{forward:dx*Math.cos(a)-dy*Math.sin(a),side:dx*Math.sin(a)+dy*Math.cos(a)}}
@@ -557,9 +550,9 @@ function previewItemForObject(cam,o){
   if(o.id===cam.id)return null;
   if(o.kind==='subject')return addSubjectPreview(cam,o);
   if(o.kind==='decor'){
-    if(o.type==='wall')return projectedWallWithOpenings(cam,o);
-    if(o.type==='window'){if(previewWallMatch(o))return null;return projectedVerticalPlane(cam,o,o.width||1.5,o.elevation??.9,(o.elevation??.9)+(o.zHeight||1.2),'preview-window','')}
-    if(o.type==='door'){if(previewWallMatch(o))return null;return projectedVerticalPlane(cam,o,o.width||.9,0,o.zHeight||2.04,'preview-door','')}
+    // V1.0 : la vue caméra est un contrôle de cadre/encombrement, pas une reconstruction 3D du décor.
+    if(o.type==='wall'||o.type==='door')return null;
+    if(o.type==='window')return projectedVerticalPlane(cam,o,o.width||1.5,o.elevation??.9,(o.elevation??.9)+(o.zHeight||1.2),'preview-window','FENÊTRE');
     if(o.type==='table')return addTablePreview(cam,o);
   }
   if(o.kind==='accessory'){
@@ -577,9 +570,10 @@ function makeMonitorCard(cam,compact=false){
   normalizeCameraObject(cam);const card=document.createElement('div');card.className='camera-monitor-card'+(compact?' compact':'');card.dataset.cameraId=cam.id;
   const head=document.createElement('div');head.className='camera-monitor-head';head.innerHTML=`<div><strong>${esc(cam.name)}</strong><span>${esc(cam.cameraModel)} · ${cam.focal} mm · H ${cam.height.toFixed(2)} m</span></div><button class="monitor-select" type="button">Sélectionner</button>`;head.querySelector('button').onclick=()=>{state.selected=cam.id;state.activePreviewCamera=cam.id;render()};card.appendChild(head);
   const shell=document.createElement('div');shell.className='monitor-shell';const monitor=document.createElement('div');monitor.className='monitor';const svg=svgNode('svg',{viewBox:'0 0 1600 900',preserveAspectRatio:'xMidYMid slice',class:'preview-svg'});svg.appendChild(svgNode('rect',{x:0,y:0,width:1600,height:900,class:'preview-background'}));
-  const items=[];let visibleSubjects=[],technical=[];state.objects.forEach(o=>{const item=previewItemForObject(cam,o);if(!item)return;item.object=o;items.push(item);if(bboxTouchesFrame(item.bbox)){if(o.kind==='subject')visibleSubjects.push(item);if(['light','accessory','camera'].includes(o.kind))technical.push(o)}});items.sort((a,b)=>b.depth-a.depth).forEach(item=>svg.appendChild(item.node));
+  const items=[];let visibleSubjects=[],technical=[],visibleWindows=[];state.objects.forEach(o=>{const item=previewItemForObject(cam,o);if(!item)return;item.object=o;items.push(item);if(bboxTouchesFrame(item.bbox)){if(o.kind==='subject')visibleSubjects.push(item);if(['light','accessory','camera'].includes(o.kind))technical.push(o);if(o.kind==='decor'&&o.type==='window')visibleWindows.push(o)}});items.sort((a,b)=>b.depth-a.depth).forEach(item=>svg.appendChild(item.node));
   const guides=svgNode('g',{class:'preview-guides'});guides.appendChild(svgNode('rect',{x:80,y:45,width:1440,height:810,class:'preview-safe'}));[1600/3,3200/3].forEach(x=>guides.appendChild(svgNode('line',{x1:x,y1:0,x2:x,y2:900,class:'preview-third'})));[300,600].forEach(y=>guides.appendChild(svgNode('line',{x1:0,y1:y,x2:1600,y2:y,class:'preview-third'})));svg.appendChild(guides);monitor.appendChild(svg);
   const label=document.createElement('div');label.className='preview-label';if(visibleSubjects.length){const main=visibleSubjects.sort((a,b)=>Math.abs((a.bbox.x0+a.bbox.x1)/2-800)-Math.abs((b.bbox.x0+b.bbox.x1)/2-800))[0];label.textContent=`${shotLabel(main.subjectHeight||0)} · ${visibleSubjects.length} sujet${visibleSubjects.length>1?'s':''} visible${visibleSubjects.length>1?'s':''}`}else label.textContent='Aucun sujet dans le cadre';monitor.appendChild(label);
+  if(visibleWindows.length){const info=document.createElement('div');info.className='preview-scene-info';info.textContent=`Fenêtre${visibleWindows.length>1?'s':''} visible${visibleWindows.length>1?'s':''} : ${visibleWindows.map(o=>o.name).slice(0,2).join(' · ')}${visibleWindows.length>2?` +${visibleWindows.length-2}`:''}`;monitor.appendChild(info)}
   if(technical.length){const alert=document.createElement('div');alert.className='preview-warning';const names=[...new Set(technical.map(o=>o.kind==='light'?(o.modifier==='softbox'?`${o.short||o.name} + softbox`:o.modifier==='umbrella-reflect'?`${o.short||o.name} + parapluie réflexion`:o.modifier==='umbrella-diffusion'?`${o.short||o.name} + parapluie diffusion`:(o.short||o.name)):o.name))];alert.textContent=`⚠ Dans le champ : ${names.slice(0,3).join(' · ')}${names.length>3?` +${names.length-3}`:''}`;monitor.appendChild(alert)}
   shell.appendChild(monitor);card.appendChild(shell);return card;
 }
@@ -660,8 +654,8 @@ function savePlanToLibrary(){
 function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;state=deepClone(rec.state);state.planId=rec.id;state.planName=rec.name;state.folderId=rec.folderId;ensureStateDefaults();state.objects.forEach(normalizeSceneObject);migrateOpeningBindings();state.selected=null;if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null;persistCurrent();render();closeLibraryDialog()}
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
-function newPlan(){persistCurrent();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';seed();render();renderLibraryList()}
-function exportProject(){const payload={format:'BOS_PLAN_FEU',version:'0.9',exportedAt:new Date().toISOString(),plan:snapshotState()};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`${safeName(state.planName)}.bosplan.json`)}
+function newPlan(){persistCurrent();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.45;seed();render();renderLibraryList()}
+function exportProject(){const payload={format:'BOS_PLAN_FEU',version:'1.1',exportedAt:new Date().toISOString(),plan:snapshotState()};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`${safeName(state.planName)}.bosplan.json`)}
 
 document.getElementById('libraryBtn').onclick=openLibraryDialog;
 document.getElementById('closeLibraryBtn').onclick=closeLibraryDialog;
@@ -671,7 +665,7 @@ document.getElementById('newPlanBtn').onclick=newPlan;
 document.getElementById('saveToLibraryBtn').onclick=savePlanToLibrary;
 document.getElementById('exportProjectBtn').onclick=exportProject;
 document.getElementById('saveBtn').onclick=()=>{if(!state.planId){openLibraryDialog();planNameInput.focus()}else{persistCurrent();flash('Plan sauvé')}};
-document.getElementById('resetBtn').onclick=()=>{if(confirm('Réinitialiser le contenu de ce plan ?')){const meta={planId:state.planId,planName:state.planName,folderId:state.folderId,snap:state.snap,labelsMode:state.labelsMode};seed();Object.assign(state,meta);render()}};
+document.getElementById('resetBtn').onclick=()=>{if(confirm('Réinitialiser le contenu de ce plan ?')){const meta={planId:state.planId,planName:state.planName,folderId:state.folderId,snap:state.snap,labelsMode:state.labelsMode,gridOpacity:state.gridOpacity};seed();Object.assign(state,meta);render()}};
 function flash(txt){const b=document.getElementById('saveBtn'),old=b.textContent;b.textContent='✓ '+txt;setTimeout(()=>b.textContent=old,1200)}
 function inlineSvgStyles(original,clone){
   const props=['fill','stroke','stroke-width','stroke-dasharray','stroke-linecap','stroke-linejoin','opacity','font-family','font-size','font-weight','letter-spacing','paint-order','color'];
@@ -689,7 +683,9 @@ function exportPng(){
 document.getElementById('exportBtn').onclick=exportPng;
 snapSelect.onchange=()=>{state.snap=Number(snapSelect.value)||0;renderCanvas()};
 labelsModeSelect.onchange=()=>{state.labelsMode=labelsModeSelect.value;renderCanvas()};
-beamsModeSelect.onchange=()=>{state.beamsVisible=beamsModeSelect.value!=='hidden';renderCanvas()};
+toggleBeamsBtn.onclick=()=>{state.beamsVisible=state.beamsVisible===false;updatePlanBadge();renderCanvas()};
+if(gridOpacityRange){gridOpacityRange.oninput=()=>{state.gridOpacity=clamp(Number(gridOpacityRange.value)/100,.1,1);updateGridOpacity();scheduleAutosave()};gridOpacityRange.onchange=()=>persistCurrent()}
+
 function normalizeSceneObject(o){
   if(o.kind==='light')normalizeLightObject(o);
   if(o.kind==='camera')normalizeCameraObject(o);

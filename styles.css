@@ -92,3 +92,22 @@ button{border:0;border-radius:12px;padding:10px 14px;font-weight:750}.ghost{back
 .preview-umbrella-reflect{fill:rgba(232,236,240,.96);stroke:#707b86;stroke-width:7}
 .preview-umbrella-diffusion{fill:rgba(225,241,252,.48);stroke:#9cb8cb;stroke-width:7;stroke-dasharray:14 8}
 @media(prefers-color-scheme:dark){.umbrella-code{stroke:#181d24}.umbrella-reflect-shape{fill:rgba(215,221,228,.75)}.umbrella-diffusion-shape{fill:rgba(206,227,240,.18)}}
+
+/* --- V1.0 : simplification des réglages + contrôle global des faisceaux --- */
+.beam-global-control{display:flex;flex-direction:column;gap:5px;font-size:10px;font-weight:850;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.beam-toggle{min-height:34px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:11px;font-weight:850;white-space:nowrap}
+.beam-toggle.active{border-color:var(--blue);background:var(--blue-soft);color:var(--blue)}
+.direct-edit-note{margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--panel);font-size:11px;line-height:1.4;color:var(--muted)}
+@media(max-width:900px){.beam-global-control{flex:1}.beam-toggle{width:100%}}
+
+.preview-scene-info{position:absolute;left:12px;top:12px;z-index:4;padding:6px 9px;border-radius:8px;background:rgba(18,24,33,.72);color:#fff;font-size:10px;font-weight:750;backdrop-filter:blur(4px)}
+
+
+/* --- V1.1 : opacité réglable de la grille --- */
+.grid-small{opacity:var(--grid-small-opacity,.45)}
+.grid-large{opacity:var(--grid-large-opacity,.78)}
+.grid-opacity-control{display:flex;flex-direction:column;gap:5px;min-width:150px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.grid-opacity-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;font-weight:850}
+.grid-opacity-head output{color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:0;text-transform:none}
+.grid-opacity-control input[type=range]{width:150px;height:34px;padding:0;border:0;box-shadow:none;background:transparent;accent-color:var(--blue)}
+@media(max-width:900px){.grid-opacity-control{width:100%;min-width:0}.grid-opacity-control input[type=range]{width:100%}}

@@ -1,10 +1,18 @@
-BOS · PLAN FEU — V0.9
+BOS · PLAN FEU — V1.1
 
-Nouveautés principales :
-- Parapluie réflexion et parapluie diffusion comme modificateurs de lumière.
-- Taille/diamètre du modificateur réglable pour la prévisualisation caméra.
-- Faisceaux lumière masquables globalement dans la barre d’outils ou individuellement par projecteur.
-- Nouvelle logique de fenêtre/porte dans la vue caméra : une ouverture simplement alignée sur un mur est traitée comme une ouverture de ce mur pour la prévisualisation, sans déplacer l’objet sur le plan.
-- L’association explicite fenêtre ↔ mur reste disponible si l’on veut que l’ouverture suive le mur.
+Nouveauté principale :
+- Réglage global « Opacité grille » de 10 % à 100 %.
+- Les petits carreaux suivent directement le niveau choisi.
+- Les grands carreaux de 1 m restent volontairement plus visibles pour conserver un repère métrique clair, même avec une grille discrète.
+- Le réglage est sauvegardé avec le plan et conservé dans les exports de projet BOS.
 
-1 grand carreau du plan = 1 m.
+Fonctions V1.0 conservées :
+- Vue caméra simplifiée : fenêtres visibles, murs/portes retirés de la prévisualisation.
+- Bouton global « Faisceaux ON / OFF ».
+- Déplacement et rotation directement sur le plan, sans champs X/Y/rotation dans Réglages.
+- Parapluies réflexion/diffusion, softbox et contrôle multicam.
+
+Échelle : 1 grand carreau = 1 m ; petit carreau = 25 cm.
+
+IMPORTANT — ouverture des faisceaux :
+Les angles actuellement présents dans le catalogue sont des valeurs schématiques par famille de source et non une base photométrique constructeur exhaustive. Ils servent uniquement à rendre le plan lisible.
