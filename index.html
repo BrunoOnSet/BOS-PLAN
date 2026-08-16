@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b6cff" />
+  <title>BOS · Plan Feu</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-badge">BOS</div>
+        <div>
+          <div class="brand-title">Plan Feu</div>
+          <div class="brand-subtitle">Bruno OnSet</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="ghost" id="resetBtn">Réinitialiser</button>
+        <button class="ghost" id="saveBtn">Sauver</button>
+        <button class="primary" id="exportBtn">Exporter</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="toolbar card">
+        <div class="tool-group grow">
+          <label>Ajouter</label>
+          <div class="button-row">
+            <button class="chip" id="addSubjectBtn">+ Personnage</button>
+            <button class="chip" id="addCameraBtn">+ Caméra</button>
+          </div>
+        </div>
+        <div class="tool-group grow">
+          <label for="lightPreset">Projecteur Amaran</label>
+          <div class="select-row">
+            <select id="lightPreset"></select>
+            <button class="chip accent" id="addLightBtn">+ Ajouter</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace-grid">
+        <div class="stage-card card">
+          <div class="section-head">
+            <div>
+              <h2>Plan</h2>
+              <p>Vue du dessus · glisser pour déplacer</p>
+            </div>
+            <div class="legend">
+              <span><i class="dot camera-dot"></i>caméra</span>
+              <span><i class="dot subject-dot"></i>sujet</span>
+              <span><i class="dot light-dot"></i>lumière</span>
+            </div>
+          </div>
+          <div class="stage-wrap" id="stageWrap">
+            <svg id="stage" viewBox="0 0 1000 620" aria-label="Plan feu vue du dessus">
+              <defs>
+                <pattern id="smallGrid" width="25" height="25" patternUnits="userSpaceOnUse">
+                  <path d="M 25 0 L 0 0 0 25" fill="none" class="grid-small"/>
+                </pattern>
+                <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
+                  <rect width="100" height="100" fill="url(#smallGrid)"/>
+                  <path d="M 100 0 L 0 0 0 100" fill="none" class="grid-large"/>
+                </pattern>
+              </defs>
+              <rect width="1000" height="620" class="stage-bg" />
+              <rect width="1000" height="620" fill="url(#grid)" />
+              <g id="beamsLayer"></g>
+              <g id="objectsLayer"></g>
+            </svg>
+            <div class="scale-note">1 grand carreau ≈ 1 m</div>
+          </div>
+        </div>
+
+        <aside class="inspector card" id="inspector">
+          <div class="section-head compact">
+            <div>
+              <h2>Réglages</h2>
+              <p id="selectionHint">Sélectionne un élément</p>
+            </div>
+          </div>
+          <div id="inspectorEmpty" class="empty-state">
+            <div class="empty-icon">↖</div>
+            <p>Clique sur une caméra, un personnage ou un projecteur pour modifier ses paramètres.</p>
+          </div>
+          <div id="inspectorFields" class="fields hidden"></div>
+        </aside>
+      </section>
+
+      <section class="camera-preview card">
+        <div class="section-head preview-head">
+          <div>
+            <h2>Vue caméra</h2>
+            <p id="cameraReadout">—</p>
+          </div>
+          <div class="preview-controls">
+            <label>Caméra
+              <select id="cameraModel"></select>
+            </label>
+            <label>Focale
+              <div class="focal-wrap"><input id="focalInput" type="number" min="12" max="300" step="1" value="50"><span>mm</span></div>
+            </label>
+          </div>
+        </div>
+        <div class="monitor-shell">
+          <div class="monitor" id="monitor">
+            <div class="frame-guide safe"></div>
+            <div class="frame-guide thirds v1"></div><div class="frame-guide thirds v2"></div>
+            <div class="frame-guide thirds h1"></div><div class="frame-guide thirds h2"></div>
+            <div id="previewScene" class="preview-scene"></div>
+            <div class="preview-label" id="previewLabel">Aucun sujet dans l’axe</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
