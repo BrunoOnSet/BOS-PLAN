@@ -1,18 +1,14 @@
-BOS · PLAN FEU — V1.1
+BOS · PLAN FEU — V1.2
 
-Nouveauté principale :
-- Réglage global « Opacité grille » de 10 % à 100 %.
-- Les petits carreaux suivent directement le niveau choisi.
-- Les grands carreaux de 1 m restent volontairement plus visibles pour conserver un repère métrique clair, même avec une grille discrète.
-- Le réglage est sauvegardé avec le plan et conservé dans les exports de projet BOS.
-
-Fonctions V1.0 conservées :
-- Vue caméra simplifiée : fenêtres visibles, murs/portes retirés de la prévisualisation.
-- Bouton global « Faisceaux ON / OFF ».
-- Déplacement et rotation directement sur le plan, sans champs X/Y/rotation dans Réglages.
-- Parapluies réflexion/diffusion, softbox et contrôle multicam.
+Nouveautés :
+- « Grille » est renommé « Aimantation » : 25 cm signifie que les objets se calent par pas de 25 cm lors du déplacement.
+- Correction du curseur « Opacité grille » : il agit directement sur les traits SVG des petits et grands carreaux.
+- Réglage couleur par projecteur : Température de couleur (CCT) ou HSI.
+- En mode HSI, l’intensité reste le réglage général déjà présent ; on règle donc Hue et Saturation.
+- La couleur choisie teinte aussi le faisceau schématique et apparaît dans la légende complète du projecteur.
 
 Échelle : 1 grand carreau = 1 m ; petit carreau = 25 cm.
+Aimantation : Libre / 10 cm / 25 cm / 50 cm / 1 m.
 
 IMPORTANT — ouverture des faisceaux :
-Les angles actuellement présents dans le catalogue sont des valeurs schématiques par famille de source et non une base photométrique constructeur exhaustive. Ils servent uniquement à rendre le plan lisible.
+Les angles actuellement présents dans le catalogue restent des valeurs schématiques par famille de source et non une base photométrique constructeur exhaustive.
