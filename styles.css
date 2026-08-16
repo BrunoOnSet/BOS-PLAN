@@ -81,3 +81,14 @@ button{border:0;border-radius:12px;padding:10px 14px;font-weight:750}.ghost{back
 .preview-door-frame{fill:none;stroke:#604f40;stroke-width:7;stroke-linejoin:round}
 .field-help{display:block;margin-top:7px;color:var(--muted);font-size:11px;line-height:1.4}
 .opening-wall-field .change-fixture{margin-top:10px}
+
+
+/* --- V0.9 : parapluies, faisceaux masquables, fenêtres prévisualisées sur leur mur --- */
+.umbrella-stem{stroke:#8d99a5;stroke-width:3;stroke-linecap:round}
+.umbrella-rim{stroke:#8d99a5;stroke-width:2;stroke-linecap:round}
+.umbrella-reflect-shape{fill:rgba(225,231,237,.88);stroke:#8d99a5;stroke-width:4;stroke-linecap:round}
+.umbrella-diffusion-shape{fill:rgba(238,246,252,.45);stroke:#b5c8d8;stroke-width:4;stroke-dasharray:5 3;stroke-linecap:round}
+.umbrella-code{font-size:9px;font-weight:900;fill:#54606c;paint-order:stroke;stroke:#fff;stroke-width:2px}
+.preview-umbrella-reflect{fill:rgba(232,236,240,.96);stroke:#707b86;stroke-width:7}
+.preview-umbrella-diffusion{fill:rgba(225,241,252,.48);stroke:#9cb8cb;stroke-width:7;stroke-dasharray:14 8}
+@media(prefers-color-scheme:dark){.umbrella-code{stroke:#181d24}.umbrella-reflect-shape{fill:rgba(215,221,228,.75)}.umbrella-diffusion-shape{fill:rgba(206,227,240,.18)}}

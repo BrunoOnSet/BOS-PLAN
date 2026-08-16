@@ -1,13 +1,10 @@
-BOS · PLAN FEU — V0.8
+BOS · PLAN FEU — V0.9
 
-Correction principale : géométrie mur / fenêtre / porte.
-- Une fenêtre ou une porte s’aimante automatiquement à un mur lorsqu’elle est approchée à ~30 cm.
-- Une fois attachée, elle adopte exactement l’axe du mur et coulisse le long de celui-ci.
-- Pour la détacher, tirer l’élément à plus d’environ 45 cm du mur.
-- Si le mur bouge ou tourne, ses ouvertures le suivent.
-- Dans la prévisualisation caméra, fenêtre/porte et mur sont rendus comme un même plan géométrique : l’ouverture est découpée dans le mur, supprimant l’effet de panneau qui passe devant.
-- Les anciens plans tentent d’attacher automatiquement les fenêtres/portes déjà très proches d’un mur.
+Nouveautés principales :
+- Parapluie réflexion et parapluie diffusion comme modificateurs de lumière.
+- Taille/diamètre du modificateur réglable pour la prévisualisation caméra.
+- Faisceaux lumière masquables globalement dans la barre d’outils ou individuellement par projecteur.
+- Nouvelle logique de fenêtre/porte dans la vue caméra : une ouverture simplement alignée sur un mur est traitée comme une ouverture de ce mur pour la prévisualisation, sans déplacer l’objet sur le plan.
+- L’association explicite fenêtre ↔ mur reste disponible si l’on veut que l’ouverture suive le mur.
 
-Fonctions V0.6 conservées : échelle, grille, bibliothèque, autosauvegarde, export, multicam, informations de plan.
-
-Ouvrir index.html dans un navigateur moderne.
+1 grand carreau du plan = 1 m.
