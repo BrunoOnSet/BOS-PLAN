@@ -1,13 +1,13 @@
-BOS · PLAN FEU — V0.6
+BOS · PLAN FEU — V0.7
 
-Nouveautés principales :
-- Échelle exacte : 1 grand carreau = 1 m ; petit carreau = 25 cm.
-- Aimantation optionnelle : libre, 10 cm, 25 cm, 50 cm ou 1 m.
-- Position X/Y précise dans les réglages.
-- Informations du plan : complet / noms / masqué + position individuelle.
-- Bibliothèque Mes plans avec noms, dossiers et autosauvegarde locale.
-- Export du projet BOS en JSON.
-- Export PNG corrigé avec styles SVG embarqués.
-- Prévisualisation multicam et matériel dans le champ conservées.
+Correction principale : géométrie mur / fenêtre / porte.
+- Une fenêtre ou une porte s’aimante automatiquement à un mur lorsqu’elle est approchée à ~30 cm.
+- Une fois attachée, elle adopte exactement l’axe du mur et coulisse le long de celui-ci.
+- Pour la détacher, tirer l’élément à plus d’environ 45 cm du mur.
+- Si le mur bouge ou tourne, ses ouvertures le suivent.
+- Dans la prévisualisation caméra, fenêtre/porte et mur sont rendus comme un même plan géométrique : l’ouverture est découpée dans le mur, supprimant l’effet de panneau qui passe devant.
+- Les anciens plans tentent d’attacher automatiquement les fenêtres/portes déjà très proches d’un mur.
+
+Fonctions V0.6 conservées : échelle, grille, bibliothèque, autosauvegarde, export, multicam, informations de plan.
 
 Ouvrir index.html dans un navigateur moderne.
