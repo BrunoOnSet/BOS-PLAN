@@ -211,6 +211,7 @@ function seed(){
   state.objects.forEach(o=>{o.labelVisible=true;o.labelPos='auto'});
   state.selected=state.objects[2].id;
   state.activePreviewCamera=state.objects[0].id;
+  state.openingBindingVersion=2;
 }
 function normalizeCameraObject(o){
   if(!o||o.kind!=='camera')return o;
@@ -352,7 +353,7 @@ function drawObject(o){
     }
     g.appendChild(label);
   }
-  if(state.selected===o.id&&!o.locked){
+  if(state.selected===o.id&&!o.locked&&!(isOpening(o)&&o.wallId)){
     const gizmo=svgEl('g',{class:'rotation-gizmo'});gizmo.appendChild(svgEl('line',{x1:40,y1:0,x2:65,y2:0,class:'rotation-stem'}));const handle=svgEl('circle',{cx:74,cy:0,r:12,class:'rotation-handle','data-id':o.id});gizmo.appendChild(handle);const arrow=svgEl('path',{d:'M 69 -4 A 6 6 0 1 1 69 4 M 69 4 L 66 1 M 69 4 L 72 1',class:'rotation-icon','data-id':o.id});gizmo.appendChild(arrow);const angle=svgEl('text',{x:74,y:-19,class:'rotation-angle','text-anchor':'middle'});angle.textContent=`${Math.round(o.rot)}°`;gizmo.appendChild(angle);handle.addEventListener('pointerdown',startRotate);arrow.addEventListener('pointerdown',startRotate);gizmo.addEventListener('pointerdown',e=>e.stopPropagation());g.appendChild(gizmo);
   }
   g.addEventListener('pointerdown',startDrag);objectsLayer.appendChild(g);
@@ -366,19 +367,19 @@ function startDrag(e){
   if(o.locked){renderInspector();return}
   const p=pointerToStage(e);drag={mode:'move',id,dx:p.x-o.x,dy:p.y-o.y,pointerId:e.pointerId};stage.setPointerCapture?.(e.pointerId);
 }
-function startRotate(e){e.preventDefault();e.stopPropagation();const id=e.currentTarget.dataset.id||e.currentTarget.closest?.('[data-id]')?.dataset.id,o=state.objects.find(x=>x.id===id);if(!o||o.locked)return;if(isOpening(o)&&o.wallId)detachOpening(o);state.selected=id;if(o.kind==='camera')state.activePreviewCamera=o.id;drag={mode:'rotate',id,pointerId:e.pointerId};stage.setPointerCapture?.(e.pointerId)}
+function startRotate(e){e.preventDefault();e.stopPropagation();const id=e.currentTarget.dataset.id||e.currentTarget.closest?.('[data-id]')?.dataset.id,o=state.objects.find(x=>x.id===id);if(!o||o.locked||isOpening(o)&&o.wallId)return;state.selected=id;if(o.kind==='camera')state.activePreviewCamera=o.id;drag={mode:'rotate',id,pointerId:e.pointerId};stage.setPointerCapture?.(e.pointerId)}
 stage.addEventListener('pointermove',e=>{
   if(!drag)return;const o=state.objects.find(x=>x.id===drag.id);if(!o)return;const p=pointerToStage(e);
   if(drag.mode==='rotate'){
     o.rot=deg(Math.atan2(p.y-o.y,p.x-o.x));if(o.rot>180)o.rot-=360;if(o.rot<=-180)o.rot+=360;if(o.kind==='decor'&&o.type==='wall')syncWallChildren(o);
   } else {
     const targetX=clamp(snapValue(p.x-drag.dx),35,965),targetY=clamp(snapValue(p.y-drag.dy),35,585);
-    if(isOpening(o)&&o.wallId){const wall=state.objects.find(w=>w.id===o.wallId&&w.type==='wall');if(wall){const pl=openingPlacementOnWall(o,wall,targetX,targetY);if(Math.abs(pl.perp)/SCALE<=.45){o.wallOffset=pl.clamped/SCALE;o.x=pl.x;o.y=pl.y;o.rot=wall.rot||0}else{detachOpening(o);o.x=targetX;o.y=targetY}}else{detachOpening(o);o.x=targetX;o.y=targetY}}
+    if(isOpening(o)&&o.wallId){const wall=state.objects.find(w=>w.id===o.wallId&&w.type==='wall');if(wall){const pl=openingPlacementOnWall(o,wall,targetX,targetY);o.wallOffset=pl.clamped/SCALE;o.x=pl.x;o.y=pl.y;o.rot=wall.rot||0}else{detachOpening(o);o.x=targetX;o.y=targetY}}
     else{o.x=targetX;o.y=targetY}
     if(o.kind==='decor'&&o.type==='wall')syncWallChildren(o);
   }renderCanvas();
 });
-function endGesture(){if(!drag)return;const o=state.objects.find(x=>x.id===drag.id);try{stage.releasePointerCapture?.(drag.pointerId)}catch{}if(o&&drag.mode==='move'&&isOpening(o)&&!o.wallId){const near=findNearbyWall(o,o.x,o.y,.32);if(near)attachOpeningToWall(o,near.wall,o.x,o.y)}if(o&&o.kind==='decor'&&o.type==='wall')syncWallChildren(o);drag=null;render()}
+function endGesture(){if(!drag)return;const o=state.objects.find(x=>x.id===drag.id);try{stage.releasePointerCapture?.(drag.pointerId)}catch{}if(o&&o.kind==='decor'&&o.type==='wall')syncWallChildren(o);drag=null;render()}
 stage.addEventListener('pointerup',endGesture);stage.addEventListener('pointercancel',endGesture);
 stage.addEventListener('pointerdown',e=>{if(e.target.closest?.('.object'))return;if(state.selected!==null){state.selected=null;render()}});
 
@@ -417,21 +418,28 @@ function renderInspector(){
     html+=`<div class="field"><label>Distance au sujet le plus proche</label><div class="field-inline"><input disabled value="${nearestSubjectDistance(o).toFixed(2)}"><span class="unit">m</span></div></div>`;
     html+=`<button class="change-fixture" id="changeFixtureBtn">Changer de modèle</button>`;
   }
+  if(isOpening(o)){
+    const walls=state.objects.filter(w=>w.kind==='decor'&&w.type==='wall');
+    const near=!o.wallId?findNearbyWall(o,o.x,o.y,.35):null;
+    html+=`<div class="field-divider"></div><div class="field opening-wall-field"><label>Ouverture dans un mur</label><select id="openingWallSelect"><option value="">Libre — aucune association</option>${walls.map(w=>`<option value="${esc(w.id)}" ${o.wallId===w.id?'selected':''}>${esc(w.name)}</option>`).join('')}</select><small class="field-help">L'association est volontaire : la fenêtre/porte reste libre tant que tu ne choisis pas un mur.</small>${near?`<button class="change-fixture" id="attachNearestWallBtn">Intégrer au mur proche : ${esc(near.wall.name)}</button>`:''}</div>`;
+  }
   if(o.labelVisible===undefined)o.labelVisible=true;if(!o.labelPos)o.labelPos='auto';
   html+=`<div class="field-divider"></div><div class="field"><label>Informations sur le plan</label><label class="label-row"><span>Afficher les infos</span><input id="labelVisibleSelected" type="checkbox" ${o.labelVisible!==false?'checked':''}></label><div class="inspector-choice five" data-choice="labelPos">${[['auto','Auto'],['top','Haut'],['bottom','Bas'],['left','Gauche'],['right','Droite']].map(([v,l])=>`<button data-value="${v}" class="${o.labelPos===v?'active':''}">${l}</button>`).join('')}</div></div>`;
   if(o.kind==='accessory'||o.kind==='decor')html+=`<label class="lock-row"><input id="lockSelected" type="checkbox" ${o.locked?'checked':''}> <span>Verrouiller la position</span></label>`;
   html+=`<button class="danger" id="deleteSelected">Supprimer cet élément</button>`;inspectorFields.innerHTML=html;
-  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;const key=inp.dataset.k;let val=inp.value;if(['rot','height','width','zHeight','elevation','intensity','beam','focal','xMeters','yMeters'].includes(key))val=Number(val);if(isOpening(obj)&&obj.wallId&&['xMeters','yMeters','rot'].includes(key))detachOpening(obj);if(key==='xMeters')obj.x=clamp(val*SCALE,0,1000);else if(key==='yMeters')obj.y=clamp(val*SCALE,0,620);else obj[key]=val;if(obj.kind==='decor'&&obj.type==='wall')syncWallChildren(obj);if(isOpening(obj)&&obj.wallId)syncOpeningToWall(obj);if(key==='intensity'){const u=inp.parentElement?.querySelector('.unit');if(u)u.textContent=`${val}%`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
+  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;const key=inp.dataset.k;let val=inp.value;if(['rot','height','width','zHeight','elevation','intensity','beam','focal','xMeters','yMeters'].includes(key))val=Number(val);if(isOpening(obj)&&obj.wallId&&(key==='xMeters'||key==='yMeters')){const wall=state.objects.find(w=>w.id===obj.wallId&&w.type==='wall');if(wall){const tx=key==='xMeters'?clamp(val*SCALE,0,1000):obj.x,ty=key==='yMeters'?clamp(val*SCALE,0,620):obj.y,p=openingPlacementOnWall(obj,wall,tx,ty);obj.wallOffset=p.clamped/SCALE;syncOpeningToWall(obj)}}else if(key==='xMeters')obj.x=clamp(val*SCALE,0,1000);else if(key==='yMeters')obj.y=clamp(val*SCALE,0,620);else obj[key]=val;if(obj.kind==='decor'&&obj.type==='wall')syncWallChildren(obj);if(isOpening(obj)&&obj.wallId)syncOpeningToWall(obj);if(key==='intensity'){const u=inp.parentElement?.querySelector('.unit');if(u)u.textContent=`${val}%`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
   const camModel=document.getElementById('selectedCameraModel');if(camModel)camModel.onchange=()=>{const obj=selected();if(!obj||obj.kind!=='camera')return;obj.cameraModel=camModel.value;state.activePreviewCamera=obj.id;renderCanvas()};
   inspectorFields.querySelectorAll('[data-choice] button').forEach(btn=>btn.onclick=()=>{const obj=selected();if(!obj)return;obj[btn.parentElement.dataset.choice]=btn.dataset.value;render()});
   const labelVisible=document.getElementById('labelVisibleSelected');if(labelVisible)labelVisible.onchange=()=>{o.labelVisible=labelVisible.checked;render()};
   const lock=document.getElementById('lockSelected');if(lock)lock.onchange=()=>{o.locked=lock.checked;render()};
   document.getElementById('deleteSelected').onclick=()=>{state.objects=state.objects.filter(x=>x.id!==o.id);if(state.activePreviewCamera===o.id)state.activePreviewCamera=state.objects.find(x=>x.kind==='camera')?.id||null;state.selected=null;render()};
   const change=document.getElementById('changeFixtureBtn');if(change)change.onclick=()=>openLightChooser(o.id);
+  const openingWallSelect=document.getElementById('openingWallSelect');if(openingWallSelect)openingWallSelect.onchange=()=>{const obj=selected();if(!obj||!isOpening(obj))return;const wallId=openingWallSelect.value;if(!wallId){detachOpening(obj);render();return}const wall=state.objects.find(w=>w.id===wallId&&w.type==='wall');if(wall){attachOpeningToWall(obj,wall,obj.x,obj.y);render()}};
+  const attachNearestWallBtn=document.getElementById('attachNearestWallBtn');if(attachNearestWallBtn)attachNearestWallBtn.onclick=()=>{const obj=selected();if(!obj||!isOpening(obj))return;const near=findNearbyWall(obj,obj.x,obj.y,.35);if(near){attachOpeningToWall(obj,near.wall,obj.x,obj.y);render()}};
 }
 function nearestSubjectDistance(o){const ss=state.objects.filter(x=>x.kind==='subject');if(!ss.length)return 0;return Math.min(...ss.map(s=>dist(o,s)))}
 
-// V0.7 — fenêtres/portes réellement liées aux murs.
+// V0.8 — association au mur explicite : aucun aimantage automatique.
 function isOpening(o){return o?.kind==='decor'&&['window','door'].includes(o.type)}
 function wallFrame(wall){
   const a=rad(wall.rot||0);return{ux:{x:Math.cos(a),y:Math.sin(a)},uy:{x:-Math.sin(a),y:Math.cos(a)},half:(wall.width||3)*SCALE/2};
@@ -453,11 +461,15 @@ function findNearbyWall(o,x=o.x,y=o.y,maxDistance=.32){
 }
 function syncOpeningToWall(o){
   if(!isOpening(o)||!o.wallId)return;const wall=state.objects.find(w=>w.id===o.wallId&&w.type==='wall');if(!wall){detachOpening(o);return}
-  const f=wallFrame(wall),halfOpening=(o.width||1)*SCALE/2,limit=Math.max(0,f.half-halfOpening),off=clamp(Number(o.wallOffset||0)*SCALE,-limit,limit);o.wallOffset=off/SCALE;o.x=wall.x+f.ux.x*off;o.y=wall.y+f.ux.y*off;o.rot=wall.rot||0;
+  const f=wallFrame(wall),halfOpening=(o.width||1)*SCALE/2,limit=Math.max(0,f.half-halfOpening),off=clamp(Number(o.wallOffset??0)*SCALE,-limit,limit);o.wallOffset=off/SCALE;o.x=wall.x+f.ux.x*off;o.y=wall.y+f.ux.y*off;o.rot=wall.rot||0;
 }
 function syncWallChildren(wall){state.objects.filter(o=>o.wallId===wall.id).forEach(syncOpeningToWall)}
-function autoAttachLegacyOpenings(maxDistance=.18){
-  state.objects.filter(isOpening).forEach(o=>{if(o.wallId){syncOpeningToWall(o);return}const near=findNearbyWall(o,o.x,o.y,maxDistance);if(near)attachOpeningToWall(o,near.wall,o.x,o.y)});
+function migrateOpeningBindings(){
+  // V0.7 associait automatiquement les portes/fenêtres aux murs.
+  // V0.8 supprime ce comportement : aucun déplacement automatique sans action explicite.
+  if(Number(state.openingBindingVersion||0)>=2)return;
+  state.objects.filter(isOpening).forEach(detachOpening);
+  state.openingBindingVersion=2;
 }
 
 function cameraSpace(cam,obj){const dx=(obj.x-cam.x)/SCALE,dy=(obj.y-cam.y)/SCALE,a=-rad(cam.rot);return{forward:dx*Math.cos(a)-dy*Math.sin(a),side:dx*Math.sin(a)+dy*Math.cos(a)}}
@@ -483,8 +495,15 @@ function projectedWallWithOpenings(cam,wall){
   for(const o of children){syncOpeningToWall(o);const z0=o.type==='window'?(o.elevation??.9):0,z1=o.type==='window'?z0+(o.zHeight||1.2):(o.zHeight||2.04),pts=verticalPlanePoints(cam,o,o.width||(o.type==='window'?1.5:.9),z0,z1);if(!pts)continue;d+=' '+pathFromProjectedPoints(pts);projectedChildren.push({o,pts});}
   const xs=outer.map(p=>p.x),ys=outer.map(p=>p.y),g=svgNode('g',{'data-depth':Math.max(...outer.map(p=>p.forward))});
   g.appendChild(svgNode('path',{d,class:'preview-wall','fill-rule':'evenodd'}));
-  // Les ouvertures sont dessinées dans le même groupe : elles ne peuvent plus "passer devant" le mur à cause du tri de profondeur.
-  for(const {o,pts} of projectedChildren){if(o.type==='window')g.appendChild(svgNode('polygon',{points:pts.map(p=>`${p.x},${p.y}`).join(' '),class:'preview-window attached-opening'}));else g.appendChild(svgNode('polygon',{points:pts.map(p=>`${p.x},${p.y}`).join(' '),class:'preview-door attached-opening'}));}
+  // Le trou est réellement découpé dans le mur. On ne redessine qu'un cadre, sans aplat opaque devant le mur.
+  for(const {o,pts} of projectedChildren){
+    const cls=o.type==='window'?'preview-window-frame':'preview-door-frame';
+    g.appendChild(svgNode('polygon',{points:pts.map(p=>`${p.x},${p.y}`).join(' '),class:cls}));
+    if(o.type==='window'){
+      const bottomMid={x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2},topMid={x:(pts[2].x+pts[3].x)/2,y:(pts[2].y+pts[3].y)/2};
+      g.appendChild(svgNode('line',{x1:bottomMid.x,y1:bottomMid.y,x2:topMid.x,y2:topMid.y,class:'preview-window-mullion'}));
+    }
+  }
   return{node:g,depth:outer.reduce((a,p)=>a+p.forward,0)/4,bbox:{x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)}};
 }
 function projectedBillboard(cam,x,y,zCenter,width,height,cls,label){
@@ -604,11 +623,11 @@ function savePlanToLibrary(){
   let rec=library.plans.find(p=>p.id===state.planId);if(!rec){rec={id:state.planId};library.plans.push(rec)}
   rec.name=name;rec.folderId=folderId;rec.updatedAt=Date.now();rec.state=snapshotState();persistLibrary();persistCurrent();renderLibraryList();flash('Plan enregistré');
 }
-function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;state=deepClone(rec.state);state.planId=rec.id;state.planName=rec.name;state.folderId=rec.folderId;ensureStateDefaults();state.objects.forEach(normalizeSceneObject);state.selected=null;if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null;persistCurrent();render();closeLibraryDialog()}
+function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;state=deepClone(rec.state);state.planId=rec.id;state.planName=rec.name;state.folderId=rec.folderId;ensureStateDefaults();state.objects.forEach(normalizeSceneObject);migrateOpeningBindings();state.selected=null;if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null;persistCurrent();render();closeLibraryDialog()}
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';seed();render();renderLibraryList()}
-function exportProject(){const payload={format:'BOS_PLAN_FEU',version:'0.7',exportedAt:new Date().toISOString(),plan:snapshotState()};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`${safeName(state.planName)}.bosplan.json`)}
+function exportProject(){const payload={format:'BOS_PLAN_FEU',version:'0.8',exportedAt:new Date().toISOString(),plan:snapshotState()};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`${safeName(state.planName)}.bosplan.json`)}
 
 document.getElementById('libraryBtn').onclick=openLibraryDialog;
 document.getElementById('closeLibraryBtn').onclick=closeLibraryDialog;
@@ -648,7 +667,7 @@ function load(){
   try{
     const raw=localStorage.getItem(CURRENT_KEY)||localStorage.getItem('bos-plan-feu-v05')||localStorage.getItem('bos-plan-feu-v04')||localStorage.getItem('bos-plan-feu-v03')||localStorage.getItem('bos-plan-feu-v02')||localStorage.getItem('bos-plan-feu-v01');
     const saved=raw&&JSON.parse(raw);
-    if(saved&&Array.isArray(saved.objects)){state=saved;if(!state.planName)state.planName=localStorage.getItem(CURRENT_KEY)?'Plan sans titre':'Plan importé V0.5';state.objects.forEach(normalizeSceneObject);autoAttachLegacyOpenings(.18);if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null}else seed();
+    if(saved&&Array.isArray(saved.objects)){state=saved;if(!state.planName)state.planName=localStorage.getItem(CURRENT_KEY)?'Plan sans titre':'Plan importé V0.5';state.objects.forEach(normalizeSceneObject);migrateOpeningBindings();if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null}else seed();
   }catch{seed()}
   ensureStateDefaults();if(!cameras[state.cameraModel])state.cameraModel='Sony FX3';state.focal=Number(state.focal)||50;updatePlanBadge();render();
 }

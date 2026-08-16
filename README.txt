@@ -1,4 +1,4 @@
-BOS · PLAN FEU — V0.7
+BOS · PLAN FEU — V0.8
 
 Correction principale : géométrie mur / fenêtre / porte.
 - Une fenêtre ou une porte s’aimante automatiquement à un mur lorsqu’elle est approchée à ~30 cm.
