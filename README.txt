@@ -1,14 +1,21 @@
-BOS · PLAN FEU — V0.2
+BOS · PLAN FEU — V0.3
 
 Nouveautés :
-- correction de la sélection qui pouvait se désactiver sur ordinateur ;
-- l'inspecteur de droite reste ouvert pendant la sélection et la saisie ;
-- poignée bleue de rotation directement sur le plan ;
-- déplacement et rotation mettent à jour la vue caméra en direct ;
-- migration automatique des sauvegardes V0.1.
+- un seul bouton « Ajouter un élément » ;
+- premier choix : Lumière / Sujet / Caméra ;
+- catalogue Lumière avec onglets Amaran et Aputure ;
+- recherche par modèle et filtre par famille ;
+- séries Amaran : Halo, Ray, COB S, 150c/300c, Pano/P60, Verge, Ace, tubes, pixel tubes, flex ;
+- séries Aputure : STORM, Electro Storm, Light Storm, NOVA, INFINIMAT, INFINIBAR et Mini ;
+- pictogramme top-view adapté à chaque famille de projecteur + code du modèle directement sur le symbole ;
+- bouton « Changer de modèle » dans les réglages d’une lumière ;
+- sauvegardes V0.1/V0.2 migrées automatiquement.
 
 Utilisation :
-1. Clique ou touche un élément pour le sélectionner.
-2. Glisse l'élément pour le déplacer.
-3. Glisse la poignée bleue située devant l'élément pour l'orienter.
-4. Les valeurs précises peuvent toujours être saisies dans Réglages.
+1. Clique « Ajouter un élément ».
+2. Choisis Lumière, Sujet ou Caméra.
+3. Pour une lumière, sélectionne Amaran/Aputure puis le modèle.
+4. Sur le plan : glisser = déplacer ; poignée bleue = orienter.
+5. La vue caméra en bas reste calculée en fonction de la position, du capteur et de la focale.
+
+Note : le cône lumineux reste volontairement schématique. Il sert au placement, pas à simuler le rendu photométrique réel.

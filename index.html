@@ -28,18 +28,12 @@
     <main>
       <section class="toolbar card">
         <div class="tool-group grow">
-          <label>Ajouter</label>
-          <div class="button-row">
-            <button class="chip" id="addSubjectBtn">+ Personnage</button>
-            <button class="chip" id="addCameraBtn">+ Caméra</button>
-          </div>
+          <label>Éléments du plan</label>
+          <button class="add-main" id="openAddBtn"><span class="plus">+</span> Ajouter un élément</button>
         </div>
-        <div class="tool-group grow">
-          <label for="lightPreset">Projecteur Amaran</label>
-          <div class="select-row">
-            <select id="lightPreset"></select>
-            <button class="chip accent" id="addLightBtn">+ Ajouter</button>
-          </div>
+        <div class="toolbar-note">
+          <strong>V0.3</strong>
+          <span>Lumières Amaran + Aputure avec symbole dédié</span>
         </div>
       </section>
 
@@ -118,6 +112,52 @@
       </section>
     </main>
   </div>
+
+  <dialog id="addDialog" class="add-dialog">
+    <div class="dialog-shell">
+      <div class="dialog-head">
+        <div>
+          <div class="dialog-kicker">Ajouter</div>
+          <h2 id="dialogTitle">Choisir un élément</h2>
+        </div>
+        <button class="dialog-close" id="closeAddBtn" aria-label="Fermer">×</button>
+      </div>
+
+      <div id="addKinds" class="kind-grid">
+        <button class="kind-card" data-kind="light">
+          <span class="kind-icon light-kind-icon">✦</span>
+          <strong>Lumière</strong>
+          <small>Amaran · Aputure</small>
+        </button>
+        <button class="kind-card" data-kind="subject">
+          <span class="kind-icon subject-kind-icon">●</span>
+          <strong>Sujet</strong>
+          <small>Ajouter un personnage</small>
+        </button>
+        <button class="kind-card" data-kind="camera">
+          <span class="kind-icon camera-kind-icon">▰</span>
+          <strong>Caméra</strong>
+          <small>Ajouter une caméra</small>
+        </button>
+      </div>
+
+      <div id="lightChooser" class="light-chooser hidden">
+        <div class="chooser-topline">
+          <button class="back-btn" id="backToKindsBtn">← Éléments</button>
+          <div class="brand-tabs" role="tablist" aria-label="Marque">
+            <button class="brand-tab active" data-brand="Amaran">Amaran</button>
+            <button class="brand-tab" data-brand="Aputure">Aputure</button>
+          </div>
+        </div>
+        <div class="catalog-tools">
+          <input id="lightSearch" type="search" placeholder="Rechercher un modèle…" autocomplete="off" />
+          <select id="familyFilter" aria-label="Famille"></select>
+        </div>
+        <div id="catalogCount" class="catalog-count"></div>
+        <div id="lightCatalog" class="light-catalog"></div>
+      </div>
+    </div>
+  </dialog>
 
   <script src="app.js"></script>
 </body>
