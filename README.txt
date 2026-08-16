@@ -1,9 +1,11 @@
-BOS · PLAN FEU V0.4
+BOS · PLAN FEU — V0.5
 
-- Ajouter : Lumière / Sujet / Caméra / Accessoire / Décor
-- Catalogue lumière Amaran + Aputure sous forme de boutons Marque > Gamme > Modèle
-- Softbox activable dans le panneau Réglages avec icône dédiée sur le plan
-- Accessoires : cadre de diffusion, borniol, negative fill, réflecteur
-- Décor : mur, porte, fenêtre, table
-- Rotation directe, dimensions et verrouillage pour grip/décor
-- Vue caméra et export PNG
+Nouveautés :
+- prévisualisation de toutes les caméras : 1 plein écran, 2 en split, 3+ avec sélection
+- caméra / capteur / focale propres à chaque caméra
+- deuxième sujet, murs, portes, fenêtres, tables et accessoires visibles dans les vues caméra
+- projecteurs, softbox, cadres, négatifs et autres caméras peuvent apparaître dans le champ
+- indicateur d’équipement technique dans le cadre
+- hauteur caméra et hauteurs de décor réglables
+
+Ouvrir index.html pour tester localement.

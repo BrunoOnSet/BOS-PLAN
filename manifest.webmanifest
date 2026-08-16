@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#f4f6f9",
   "theme_color": "#0b6cff",
-  "description": "BOS Plan Feu V0.4 — plan feu 2D avec catalogue Amaran et Aputure",
+  "description": "BOS Plan Feu V0.5 — plan feu 2D multicam avec décor et matériel visible dans le cadre",
   "icons": [
     {
       "src": "icon-192.png",

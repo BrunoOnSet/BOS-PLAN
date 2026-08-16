@@ -32,8 +32,8 @@
           <button class="add-main" id="openAddBtn"><span class="plus">+</span> Ajouter un élément</button>
         </div>
         <div class="toolbar-note">
-          <strong>V0.4</strong>
-          <span>Catalogue BOS Light · accessoires · décor</span>
+          <strong>V0.5</strong>
+          <span>Multicam · décor et matériel dans le cadre</span>
         </div>
       </section>
 
@@ -90,27 +90,12 @@
       <section class="camera-preview card">
         <div class="section-head preview-head">
           <div>
-            <h2>Vue caméra</h2>
-            <p id="cameraReadout">—</p>
+            <h2>Vues caméra</h2>
+            <p id="cameraReadout">Chaque caméra utilise sa propre focale et son propre capteur.</p>
           </div>
-          <div class="preview-controls">
-            <label>Caméra
-              <select id="cameraModel"></select>
-            </label>
-            <label>Focale
-              <div class="focal-wrap"><input id="focalInput" type="number" min="12" max="300" step="1" value="50"><span>mm</span></div>
-            </label>
-          </div>
+          <div class="preview-tabs hidden" id="previewTabs"></div>
         </div>
-        <div class="monitor-shell">
-          <div class="monitor" id="monitor">
-            <div class="frame-guide safe"></div>
-            <div class="frame-guide thirds v1"></div><div class="frame-guide thirds v2"></div>
-            <div class="frame-guide thirds h1"></div><div class="frame-guide thirds h2"></div>
-            <div id="previewScene" class="preview-scene"></div>
-            <div class="preview-label" id="previewLabel">Aucun sujet dans l’axe</div>
-          </div>
-        </div>
+        <div class="camera-monitors" id="cameraMonitors"></div>
       </section>
     </main>
   </div>

@@ -5,11 +5,9 @@ const objectsLayer=document.getElementById('objectsLayer');
 const inspectorEmpty=document.getElementById('inspectorEmpty');
 const inspectorFields=document.getElementById('inspectorFields');
 const selectionHint=document.getElementById('selectionHint');
-const previewScene=document.getElementById('previewScene');
-const previewLabel=document.getElementById('previewLabel');
 const cameraReadout=document.getElementById('cameraReadout');
-const focalInput=document.getElementById('focalInput');
-const cameraModel=document.getElementById('cameraModel');
+const cameraMonitors=document.getElementById('cameraMonitors');
+const previewTabs=document.getElementById('previewTabs');
 const addDialog=document.getElementById('addDialog');
 const addKinds=document.getElementById('addKinds');
 const lightChooser=document.getElementById('lightChooser');
@@ -136,7 +134,7 @@ const decorCatalog=[
   {type:'table',name:'Table',short:'TABLE',width:1.6,height:.8}
 ];
 
-let state={objects:[],selected:null,cameraModel:'Sony FX3',focal:50};
+let state={objects:[],selected:null,activePreviewCamera:null,cameraModel:'Sony FX3',focal:50};
 let drag=null;
 let replaceLightId=null;
 let catalogBrand='Amaran';
@@ -170,17 +168,21 @@ function normalizeLightObject(o){
 }
 function seed(){
   state.objects=[
-    {id:uid('cam'),kind:'camera',name:'Caméra A',x:500,y:505,rot:-90,locked:false},
+    {id:uid('cam'),kind:'camera',name:'Caméra A',x:500,y:505,rot:-90,height:1.55,cameraModel:'Sony FX3',focal:50,locked:false},
     {id:uid('subj'),kind:'subject',name:'Sujet 1',x:500,y:300,rot:90,height:1.75,locked:false},
     {id:uid('light'),kind:'light',name:'amaran Halo 200x',brand:'Amaran',family:'Halo',form:'halo',short:'H200',x:285,y:330,rot:-15,beam:55,intensity:60,height:2.0,modifier:'none',locked:false}
   ];
   state.selected=state.objects[2].id;
+  state.activePreviewCamera=state.objects[0].id;
 }
-function populateCameraSelect(){
-  cameraModel.innerHTML='';
-  Object.keys(cameras).forEach(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;cameraModel.appendChild(o)});
-  cameraModel.value=state.cameraModel;
+function normalizeCameraObject(o){
+  if(!o||o.kind!=='camera')return o;
+  o.cameraModel=cameras[o.cameraModel]?o.cameraModel:(cameras[state.cameraModel]?state.cameraModel:'Sony FX3');
+  o.focal=clamp(Number(o.focal||state.focal||50),12,300);
+  o.height=clamp(Number(o.height||1.55),0.2,4);
+  return o;
 }
+function cameraSettings(o){normalizeCameraObject(o);return {sensor:cameras[o.cameraModel],focal:o.focal};}
 
 function renderCanvas(){
   beamsLayer.innerHTML='';objectsLayer.innerHTML='';
@@ -191,7 +193,7 @@ function renderCanvas(){
 }
 function render(){renderCanvas();renderInspector()}
 function drawCameraFov(o){
-  const sensor=cameras[state.cameraModel];const hfov=2*Math.atan(sensor.w/(2*state.focal));const len=460,half=Math.tan(hfov/2)*len;
+  const {sensor,focal}=cameraSettings(o),hfov=2*Math.atan(sensor.w/(2*focal)),len=460,half=Math.tan(hfov/2)*len;
   beamsLayer.appendChild(svgEl('polygon',{points:`0,0 ${len},${-half} ${len},${half}`,class:'camera-fov',transform:`translate(${o.x} ${o.y}) rotate(${o.rot})`}));
 }
 function drawLightBeam(o){
@@ -314,10 +316,11 @@ function pointerToStage(e){const pt=stage.createSVGPoint();pt.x=e.clientX;pt.y=e
 function startDrag(e){
   e.preventDefault();e.stopPropagation();const id=e.currentTarget.dataset.id,o=state.objects.find(x=>x.id===id);if(!o)return;
   if(state.selected!==id){state.selected=id;renderInspector()}
+  if(o.kind==='camera'){state.activePreviewCamera=o.id;renderPreview()}
   if(o.locked){renderInspector();return}
   const p=pointerToStage(e);drag={mode:'move',id,dx:p.x-o.x,dy:p.y-o.y,pointerId:e.pointerId};stage.setPointerCapture?.(e.pointerId);
 }
-function startRotate(e){e.preventDefault();e.stopPropagation();const id=e.currentTarget.dataset.id||e.currentTarget.closest?.('[data-id]')?.dataset.id,o=state.objects.find(x=>x.id===id);if(!o||o.locked)return;state.selected=id;drag={mode:'rotate',id,pointerId:e.pointerId};stage.setPointerCapture?.(e.pointerId)}
+function startRotate(e){e.preventDefault();e.stopPropagation();const id=e.currentTarget.dataset.id||e.currentTarget.closest?.('[data-id]')?.dataset.id,o=state.objects.find(x=>x.id===id);if(!o||o.locked)return;state.selected=id;if(o.kind==='camera')state.activePreviewCamera=o.id;drag={mode:'rotate',id,pointerId:e.pointerId};stage.setPointerCapture?.(e.pointerId)}
 stage.addEventListener('pointermove',e=>{
   if(!drag)return;const o=state.objects.find(x=>x.id===drag.id);if(!o)return;const p=pointerToStage(e);
   if(drag.mode==='rotate'){o.rot=deg(Math.atan2(p.y-o.y,p.x-o.x));if(o.rot>180)o.rot-=360;if(o.rot<=-180)o.rot+=360}
@@ -333,15 +336,26 @@ function toggleButtons(key,current,options){return `<div class="inspector-choice
 function renderInspector(){
   const o=selected();if(!o){inspectorEmpty.classList.remove('hidden');inspectorFields.classList.add('hidden');selectionHint.textContent='Sélectionne un élément';return}
   inspectorEmpty.classList.add('hidden');inspectorFields.classList.remove('hidden');selectionHint.textContent=kindLabel(o);
+  if(o.kind==='camera')normalizeCameraObject(o);
   let html=`<div class="field"><label>Nom</label><input data-k="name" value="${esc(o.name)}"></div>`;
   if(o.kind==='light')html+=`<div class="fixture-summary"><span class="fixture-brand">${esc(o.brand||'')}</span><strong>${esc(o.name)}</strong><small>${esc(o.family||'')}</small></div>`;
+  if(o.kind==='camera'){
+    html+=`<div class="field"><label>Caméra / capteur</label><select id="selectedCameraModel">${Object.keys(cameras).map(name=>`<option value="${esc(name)}" ${o.cameraModel===name?'selected':''}>${esc(name)}</option>`).join('')}</select></div>`;
+    html+=`<div class="field-grid"><div class="field"><label>Focale</label><div class="field-inline"><input data-k="focal" type="number" min="12" max="300" step="1" value="${o.focal}"><span class="unit">mm</span></div></div><div class="field"><label>Hauteur caméra</label><div class="field-inline"><input data-k="height" type="number" min="0.2" max="4" step="0.05" value="${o.height}"><span class="unit">m</span></div></div></div>`;
+  }
   html+=`<div class="field-grid"><div class="field"><label>Rotation</label><div class="field-inline"><input data-k="rot" type="number" min="-180" max="180" value="${Math.round(o.rot)}"><span class="unit">°</span></div></div>`;
   if(o.kind==='subject')html+=`<div class="field"><label>Taille</label><div class="field-inline"><input data-k="height" type="number" min="1" max="2.2" step="0.01" value="${o.height}"><span class="unit">m</span></div></div>`;
-  else if(o.kind==='light')html+=`<div class="field"><label>Hauteur</label><div class="field-inline"><input data-k="height" type="number" min="0" max="5" step="0.1" value="${o.height}"><span class="unit">m</span></div></div>`;
+  else if(o.kind==='light')html+=`<div class="field"><label>Hauteur source</label><div class="field-inline"><input data-k="height" type="number" min="0" max="5" step="0.1" value="${o.height}"><span class="unit">m</span></div></div>`;
   else if(o.kind==='accessory'||o.kind==='decor')html+=`<div class="field"><label>Largeur</label><div class="field-inline"><input data-k="width" type="number" min="0.1" max="20" step="0.1" value="${o.width}"><span class="unit">m</span></div></div>`;
-  else html+=`<div class="field"><label>Distance sujet</label><div class="field-inline"><input disabled value="${nearestSubjectDistance(o).toFixed(2)}"><span class="unit">m</span></div></div>`;
+  else if(o.kind!=='camera')html+=`<div class="field"><label>Distance sujet</label><div class="field-inline"><input disabled value="${nearestSubjectDistance(o).toFixed(2)}"><span class="unit">m</span></div></div>`;
   html+='</div>';
-  if(o.kind==='accessory'||o.kind==='decor')html+=`<div class="field"><label>Profondeur / hauteur plan</label><div class="field-inline"><input data-k="height" type="number" min="0.05" max="20" step="0.1" value="${o.height}"><span class="unit">m</span></div></div>`;
+  if(o.kind==='accessory'||o.kind==='decor'){
+    const zDefault=o.kind==='accessory'?(o.height||1.2):(o.type==='wall'?2.5:o.type==='door'?2.04:o.type==='window'?1.2:o.type==='table'?.75:1);
+    o.zHeight=Number(o.zHeight||zDefault);
+    if(o.elevation===undefined)o.elevation=o.type==='window'?.9:(o.kind==='accessory'?.35:0);
+    html+=`<div class="field-grid"><div class="field"><label>Profondeur plan</label><div class="field-inline"><input data-k="height" type="number" min="0.05" max="20" step="0.1" value="${o.height}"><span class="unit">m</span></div></div><div class="field"><label>Hauteur réelle</label><div class="field-inline"><input data-k="zHeight" type="number" min="0.05" max="10" step="0.05" value="${o.zHeight}"><span class="unit">m</span></div></div></div>`;
+    if(o.kind==='accessory'||o.type==='window')html+=`<div class="field"><label>Hauteur au sol</label><div class="field-inline"><input data-k="elevation" type="number" min="0" max="5" step="0.05" value="${o.elevation}"><span class="unit">m</span></div></div>`;
+  }
   if(o.kind==='light'){
     html+=`<div class="field"><label>Accessoire lumière</label>${toggleButtons('modifier',o.modifier||'none',supportsSoftbox(o)?[['none','Nu'],['softbox','Softbox']]:[['none','Nu']])}</div>`;
     html+=`<div class="field"><label>Intensité</label><div class="field-inline"><input data-k="intensity" type="range" min="0" max="100" value="${o.intensity}"><span class="unit">${o.intensity}%</span></div></div>`;
@@ -351,33 +365,89 @@ function renderInspector(){
   }
   if(o.kind==='accessory'||o.kind==='decor')html+=`<label class="lock-row"><input id="lockSelected" type="checkbox" ${o.locked?'checked':''}> <span>Verrouiller la position</span></label>`;
   html+=`<button class="danger" id="deleteSelected">Supprimer cet élément</button>`;inspectorFields.innerHTML=html;
-  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;let val=inp.value;if(['rot','height','width','intensity','beam'].includes(inp.dataset.k))val=Number(val);obj[inp.dataset.k]=val;if(inp.dataset.k==='intensity'){const u=inp.parentElement?.querySelector('.unit');if(u)u.textContent=`${val}%`}renderCanvas()}));
+  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;let val=inp.value;if(['rot','height','width','zHeight','elevation','intensity','beam','focal'].includes(inp.dataset.k))val=Number(val);obj[inp.dataset.k]=val;if(inp.dataset.k==='intensity'){const u=inp.parentElement?.querySelector('.unit');if(u)u.textContent=`${val}%`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
+  const camModel=document.getElementById('selectedCameraModel');if(camModel)camModel.onchange=()=>{const obj=selected();if(!obj||obj.kind!=='camera')return;obj.cameraModel=camModel.value;state.activePreviewCamera=obj.id;renderCanvas()};
   inspectorFields.querySelectorAll('[data-choice] button').forEach(btn=>btn.onclick=()=>{const obj=selected();if(!obj)return;obj[btn.parentElement.dataset.choice]=btn.dataset.value;render()});
   const lock=document.getElementById('lockSelected');if(lock)lock.onchange=()=>{o.locked=lock.checked;render()};
-  document.getElementById('deleteSelected').onclick=()=>{state.objects=state.objects.filter(x=>x.id!==o.id);state.selected=null;render()};
+  document.getElementById('deleteSelected').onclick=()=>{state.objects=state.objects.filter(x=>x.id!==o.id);if(state.activePreviewCamera===o.id)state.activePreviewCamera=state.objects.find(x=>x.kind==='camera')?.id||null;state.selected=null;render()};
   const change=document.getElementById('changeFixtureBtn');if(change)change.onclick=()=>openLightChooser(o.id);
 }
 function nearestSubjectDistance(o){const ss=state.objects.filter(x=>x.kind==='subject');if(!ss.length)return 0;return Math.min(...ss.map(s=>dist(o,s)))}
 
-function activeCamera(){return state.objects.find(o=>o.kind==='camera')||null}
 function cameraSpace(cam,obj){const dx=(obj.x-cam.x)/SCALE,dy=(obj.y-cam.y)/SCALE,a=-rad(cam.rot);return{forward:dx*Math.cos(a)-dy*Math.sin(a),side:dx*Math.sin(a)+dy*Math.cos(a)}}
-function shotLabel(subjectPixelHeight,monitorH){const r=subjectPixelHeight/monitorH;if(r<.42)return'Plan pied large';if(r<.62)return'Plan pied';if(r<.86)return'Plan américain / taille';if(r<1.18)return'Plan poitrine';if(r<1.65)return'Gros plan';return'Très gros plan'}
+function cameraFovs(cam){const {sensor,focal}=cameraSettings(cam),hfov=2*Math.atan(sensor.w/(2*focal)),effectiveH=Math.min(sensor.h,sensor.w*9/16),vfov=2*Math.atan(effectiveH/(2*focal));return{hfov,vfov,sensor,focal}}
+function projectWorld(cam,x,y,z,W=1600,H=900){
+  const cs=cameraSpace(cam,{x,y});if(cs.forward<=.03)return null;const {hfov,vfov}=cameraFovs(cam),halfW=cs.forward*Math.tan(hfov/2),halfH=cs.forward*Math.tan(vfov/2);return{x:W*(.5+cs.side/(2*halfW)),y:H*(.5-(z-(cam.height||1.55))/(2*halfH)),forward:cs.forward,side:cs.side};
+}
+function shotLabel(subjectPixelHeight,monitorH=900){const r=subjectPixelHeight/monitorH;if(r<.42)return'Plan pied large';if(r<.62)return'Plan pied';if(r<.86)return'Plan américain / taille';if(r<1.18)return'Plan poitrine';if(r<1.65)return'Gros plan';return'Très gros plan'}
+function objectAxisEndpoints(o,widthMeters){const a=rad(o.rot||0),dx=Math.cos(a)*widthMeters*SCALE/2,dy=Math.sin(a)*widthMeters*SCALE/2;return[{x:o.x-dx,y:o.y-dy},{x:o.x+dx,y:o.y+dy}]}
+function svgNode(tag,attrs={},text=''){const el=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))el.setAttribute(k,v);if(text)el.textContent=text;return el}
+function projectedVerticalPlane(cam,o,width,z0,z1,cls,label){
+  const [a,b]=objectAxisEndpoints(o,width),p1=projectWorld(cam,a.x,a.y,z0),p2=projectWorld(cam,b.x,b.y,z0),p3=projectWorld(cam,b.x,b.y,z1),p4=projectWorld(cam,a.x,a.y,z1);if(!p1||!p2||!p3||!p4)return null;
+  const pts=[p1,p2,p3,p4],xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),g=svgNode('g',{'data-depth':Math.max(...pts.map(p=>p.forward))});g.appendChild(svgNode('polygon',{points:pts.map(p=>`${p.x},${p.y}`).join(' '),class:cls}));
+  if(label){const cx=xs.reduce((a,b)=>a+b,0)/4,cy=ys.reduce((a,b)=>a+b,0)/4;g.appendChild(svgNode('text',{x:cx,y:cy,class:'preview-object-code','text-anchor':'middle','dominant-baseline':'middle'},label))}
+  return{node:g,depth:pts.reduce((a,p)=>a+p.forward,0)/4,bbox:{x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)}};
+}
+function projectedBillboard(cam,x,y,zCenter,width,height,cls,label){
+  const c=projectWorld(cam,x,y,zCenter);if(!c)return null;const {hfov,vfov}=cameraFovs(cam),W=1600,H=900,pxW=W*width/(2*c.forward*Math.tan(hfov/2)),pxH=H*height/(2*c.forward*Math.tan(vfov/2)),x0=c.x-pxW/2,y0=c.y-pxH/2;
+  const g=svgNode('g',{'data-depth':c.forward});g.appendChild(svgNode('rect',{x:x0,y:y0,width:pxW,height:pxH,rx:Math.min(18,Math.max(3,pxH*.08)),class:cls}));if(label&&pxW>28&&pxH>16)g.appendChild(svgNode('text',{x:c.x,y:c.y,class:'preview-object-code','text-anchor':'middle','dominant-baseline':'middle'},label));return{node:g,depth:c.forward,bbox:{x0,x1:x0+pxW,y0,y1:y0+pxH}};
+}
+function bboxTouchesFrame(b){return b&&b.x1>0&&b.x0<1600&&b.y1>0&&b.y0<900}
+function addSubjectPreview(cam,o){
+  const bottom=projectWorld(cam,o.x,o.y,0),top=projectWorld(cam,o.x,o.y,o.height||1.75);if(!bottom||!top)return null;const h=Math.abs(bottom.y-top.y),midX=(bottom.x+top.x)/2,w=Math.max(12,h*.28),g=svgNode('g',{'data-depth':bottom.forward});
+  const headR=Math.max(4,w*.27),headY=top.y+h*.12;g.appendChild(svgNode('circle',{cx:midX,cy:headY,r:headR,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX-w*.38,y:top.y+h*.23,width:w*.76,height:h*.43,rx:w*.22,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX-w*.32,y:top.y+h*.60,width:w*.25,height:h*.40,rx:w*.06,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX+w*.07,y:top.y+h*.60,width:w*.25,height:h*.40,rx:w*.06,class:'preview-subject'}));g.appendChild(svgNode('text',{x:midX,y:Math.max(18,top.y-10),class:'preview-subject-label','text-anchor':'middle'},o.name));
+  return{node:g,depth:bottom.forward,bbox:{x0:midX-w/2,x1:midX+w/2,y0:top.y,y1:bottom.y},subjectHeight:h};
+}
+function addTablePreview(cam,o){
+  const a=rad(o.rot||0),ux={x:Math.cos(a),y:Math.sin(a)},uy={x:-Math.sin(a),y:Math.cos(a)},hw=(o.width||1.6)*SCALE/2,hd=(o.height||.8)*SCALE/2,z=o.zHeight||.75,ptsWorld=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([sx,sy])=>({x:o.x+ux.x*hw*sx+uy.x*hd*sy,y:o.y+ux.y*hw*sx+uy.y*hd*sy})),pts=ptsWorld.map(p=>projectWorld(cam,p.x,p.y,z));if(pts.some(p=>!p))return null;const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),g=svgNode('g');g.appendChild(svgNode('polygon',{points:pts.map(p=>`${p.x},${p.y}`).join(' '),class:'preview-table'}));const near=[...pts].sort((a,b)=>a.forward-b.forward).slice(0,2);near.forEach((pt,i)=>{const wp=ptsWorld[pts.indexOf(pt)],base=projectWorld(cam,wp.x,wp.y,0);if(base)g.appendChild(svgNode('line',{x1:pt.x,y1:pt.y,x2:base.x,y2:base.y,class:'preview-table-leg'}))});return{node:g,depth:pts.reduce((a,p)=>a+p.forward,0)/4,bbox:{x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)}};
+}
+function previewItemForObject(cam,o){
+  if(o.id===cam.id)return null;
+  if(o.kind==='subject')return addSubjectPreview(cam,o);
+  if(o.kind==='decor'){
+    if(o.type==='wall')return projectedVerticalPlane(cam,o,o.width||3,0,o.zHeight||2.5,'preview-wall','');
+    if(o.type==='window')return projectedVerticalPlane(cam,o,o.width||1.5,o.elevation??.9,(o.elevation??.9)+(o.zHeight||1.2),'preview-window','');
+    if(o.type==='door')return projectedVerticalPlane(cam,o,o.width||.9,0,o.zHeight||2.04,'preview-door','');
+    if(o.type==='table')return addTablePreview(cam,o);
+  }
+  if(o.kind==='accessory'){
+    const cls=o.type==='diffusion'?'preview-diffusion':o.type==='reflector'?'preview-reflector':o.type==='borniol'?'preview-borniol':'preview-negative';return projectedVerticalPlane(cam,o,o.width||1.2,o.elevation??.35,(o.elevation??.35)+(o.zHeight||o.height||1.5),cls,o.short||'');
+  }
+  if(o.kind==='light'){
+    const a=rad(o.rot||0),soft=o.modifier==='softbox',shift=soft?.35:0,x=o.x+Math.cos(a)*shift*SCALE,y=o.y+Math.sin(a)*shift*SCALE;let w=.38,h=.30,label=o.short||'LIGHT',cls='preview-light';
+    if(soft){w=['panel','panel-wide','ray','nova','nova-narrow'].includes(o.form)?.75:.95;h=.9;label='SOFTBOX';cls='preview-softbox'}else if(['tube','pixel-bar','strip'].includes(o.form)){w=(o.length||60)/55*.65;h=.10}else if(['panel','panel-wide','nova','nova-narrow','mat'].includes(o.form)){w=.75;h=.48}else if(o.form==='halo'){w=.48;h=.48;cls='preview-halo'};
+    return projectedBillboard(cam,x,y,o.height||2,w,h,cls,label);
+  }
+  if(o.kind==='camera')return projectedBillboard(cam,o.x,o.y,o.height||1.55,.48,.34,'preview-other-camera','CAM');
+  return null;
+}
+function makeMonitorCard(cam,compact=false){
+  normalizeCameraObject(cam);const card=document.createElement('div');card.className='camera-monitor-card'+(compact?' compact':'');card.dataset.cameraId=cam.id;
+  const head=document.createElement('div');head.className='camera-monitor-head';head.innerHTML=`<div><strong>${esc(cam.name)}</strong><span>${esc(cam.cameraModel)} · ${cam.focal} mm · H ${cam.height.toFixed(2)} m</span></div><button class="monitor-select" type="button">Sélectionner</button>`;head.querySelector('button').onclick=()=>{state.selected=cam.id;state.activePreviewCamera=cam.id;render()};card.appendChild(head);
+  const shell=document.createElement('div');shell.className='monitor-shell';const monitor=document.createElement('div');monitor.className='monitor';const svg=svgNode('svg',{viewBox:'0 0 1600 900',preserveAspectRatio:'xMidYMid slice',class:'preview-svg'});svg.appendChild(svgNode('rect',{x:0,y:0,width:1600,height:900,class:'preview-background'}));
+  const items=[];let visibleSubjects=[],technical=[];state.objects.forEach(o=>{const item=previewItemForObject(cam,o);if(!item)return;item.object=o;items.push(item);if(bboxTouchesFrame(item.bbox)){if(o.kind==='subject')visibleSubjects.push(item);if(['light','accessory','camera'].includes(o.kind))technical.push(o)}});items.sort((a,b)=>b.depth-a.depth).forEach(item=>svg.appendChild(item.node));
+  const guides=svgNode('g',{class:'preview-guides'});guides.appendChild(svgNode('rect',{x:80,y:45,width:1440,height:810,class:'preview-safe'}));[1600/3,3200/3].forEach(x=>guides.appendChild(svgNode('line',{x1:x,y1:0,x2:x,y2:900,class:'preview-third'})));[300,600].forEach(y=>guides.appendChild(svgNode('line',{x1:0,y1:y,x2:1600,y2:y,class:'preview-third'})));svg.appendChild(guides);monitor.appendChild(svg);
+  const label=document.createElement('div');label.className='preview-label';if(visibleSubjects.length){const main=visibleSubjects.sort((a,b)=>Math.abs((a.bbox.x0+a.bbox.x1)/2-800)-Math.abs((b.bbox.x0+b.bbox.x1)/2-800))[0];label.textContent=`${shotLabel(main.subjectHeight||0)} · ${visibleSubjects.length} sujet${visibleSubjects.length>1?'s':''} visible${visibleSubjects.length>1?'s':''}`}else label.textContent='Aucun sujet dans le cadre';monitor.appendChild(label);
+  if(technical.length){const alert=document.createElement('div');alert.className='preview-warning';const names=[...new Set(technical.map(o=>o.kind==='light'?(o.modifier==='softbox'?`${o.short||o.name} + softbox`:(o.short||o.name)):o.name))];alert.textContent=`⚠ Dans le champ : ${names.slice(0,3).join(' · ')}${names.length>3?` +${names.length-3}`:''}`;monitor.appendChild(alert)}
+  shell.appendChild(monitor);card.appendChild(shell);return card;
+}
 function renderPreview(){
-  previewScene.innerHTML='';const cam=activeCamera();if(!cam){previewLabel.textContent='Ajoute une caméra';cameraReadout.textContent='—';return}
-  const sensor=cameras[state.cameraModel],hfov=2*Math.atan(sensor.w/(2*state.focal)),vfov=2*Math.atan(sensor.h/(2*state.focal)),monitor=document.getElementById('monitor'),mh=monitor.clientHeight||562;
-  const subjects=state.objects.filter(o=>o.kind==='subject').map(s=>({s,...cameraSpace(cam,s)})).filter(v=>v.forward>.1);let visible=0,main=null;
-  subjects.forEach(v=>{const halfW=v.forward*Math.tan(hfov/2),xNorm=.5+(v.side/(2*halfW)),subjH=v.s.height||1.75,camH=1.55,frameHeight=2*v.forward*Math.tan(vfov/2),pixelH=mh*subjH/frameHeight,centerVertical=.5+((camH-subjH/2)/frameHeight),div=document.createElement('div');div.className='preview-person'+(state.selected===v.s.id?' selected-person':'');div.innerHTML='<div class="p-head"></div><div class="p-torso"></div><div class="p-leg l"></div><div class="p-leg r"></div>';div.style.left=`${xNorm*100}%`;div.style.top=`${centerVertical*100}%`;div.style.transform=`translate(-50%,-50%) scale(${pixelH/360})`;previewScene.appendChild(div);if(xNorm>-.2&&xNorm<1.2){visible++;if(!main||Math.abs(v.side)<Math.abs(main.side))main={...v,pixelH}}});
-  if(main){const d=main.forward.toFixed(2),label=shotLabel(main.pixelH,mh);previewLabel.textContent=`${label} · sujet à ${d} m`;cameraReadout.textContent=`${state.cameraModel} · ${state.focal} mm · ${visible} sujet${visible>1?'s':''} dans la zone`}else{previewLabel.textContent='Aucun sujet devant la caméra';cameraReadout.textContent=`${state.cameraModel} · ${state.focal} mm`}
+  const cams=state.objects.filter(o=>o.kind==='camera').map(normalizeCameraObject);cameraMonitors.innerHTML='';previewTabs.innerHTML='';
+  if(!cams.length){previewTabs.classList.add('hidden');cameraReadout.textContent='Ajoute une caméra pour afficher le cadre.';cameraMonitors.innerHTML='<div class="no-camera-preview">Ajoute une caméra au plan pour voir son cadre.</div>';return}
+  if(!cams.some(c=>c.id===state.activePreviewCamera))state.activePreviewCamera=cams[0].id;
+  if(cams.length===1){previewTabs.classList.add('hidden');cameraReadout.textContent='1 caméra · la prévisualisation suit sa position, sa focale et son capteur.';cameraMonitors.className='camera-monitors one';cameraMonitors.appendChild(makeMonitorCard(cams[0]));return}
+  if(cams.length===2){previewTabs.classList.add('hidden');cameraReadout.textContent='2 caméras · vues affichées simultanément.';cameraMonitors.className='camera-monitors two';cams.forEach(c=>cameraMonitors.appendChild(makeMonitorCard(c,true)));return}
+  previewTabs.classList.remove('hidden');cameraReadout.textContent=`${cams.length} caméras · sélectionne la vue à afficher.`;cams.forEach(c=>{const b=document.createElement('button');b.className='preview-tab'+(c.id===state.activePreviewCamera?' active':'');b.textContent=c.name;b.onclick=()=>{state.activePreviewCamera=c.id;renderPreview()};previewTabs.appendChild(b)});cameraMonitors.className='camera-monitors one';cameraMonitors.appendChild(makeMonitorCard(cams.find(c=>c.id===state.activePreviewCamera)||cams[0]));
 }
 
 function addSubject(){const n=state.objects.filter(o=>o.kind==='subject').length+1,o={id:uid('subj'),kind:'subject',name:`Sujet ${n}`,x:500+40*(n-1),y:300,rot:90,height:1.75,locked:false};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
-function addCamera(){const n=state.objects.filter(o=>o.kind==='camera').length+1,o={id:uid('cam'),kind:'camera',name:`Caméra ${String.fromCharCode(64+n)}`,x:500,y:520,rot:-90,locked:false};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
+function addCamera(){const n=state.objects.filter(o=>o.kind==='camera').length+1,o={id:uid('cam'),kind:'camera',name:`Caméra ${String.fromCharCode(64+n)}`,x:500+(n-1)*55,y:520,rot:-90,height:1.55,cameraModel:'Sony FX3',focal:50,locked:false};state.objects.push(o);state.selected=o.id;state.activePreviewCamera=o.id;closeAddDialog();render()}
 function addLightFromPreset(p,replaceId=null){
   if(replaceId){const o=state.objects.find(x=>x.id===replaceId);if(o){const mod=o.modifier||'none';Object.assign(o,{name:p.name,brand:p.brand,family:p.family,form:p.form,short:p.short,beam:p.beam,aspect:p.aspect,length:p.length,modifier:supportsSoftbox({kind:'light',form:p.form})?mod:'none'});state.selected=o.id;closeAddDialog();render();return}}
   const n=state.objects.filter(o=>o.kind==='light').length,o={id:uid('light'),kind:'light',name:p.name,brand:p.brand,family:p.family,form:p.form,short:p.short,x:245+(n%5)*72,y:235+(n%3)*75,rot:0,beam:p.beam,intensity:50,height:2,aspect:p.aspect,length:p.length,modifier:'none',locked:false};state.objects.push(o);state.selected=o.id;closeAddDialog();render();
 }
-function addAccessory(p){const n=state.objects.filter(o=>o.kind==='accessory').length,o={id:uid('acc'),kind:'accessory',type:p.type,name:p.name,x:360+(n%4)*80,y:190+(n%3)*70,rot:0,width:p.width,height:p.height,locked:false};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
-function addDecor(p){const n=state.objects.filter(o=>o.kind==='decor').length,o={id:uid('decor'),kind:'decor',type:p.type,name:p.name,x:430+(n%4)*90,y:160+(n%3)*80,rot:0,width:p.width,height:p.height,locked:false};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
+function addAccessory(p){const n=state.objects.filter(o=>o.kind==='accessory').length,o={id:uid('acc'),kind:'accessory',type:p.type,name:p.name,short:p.short,x:360+(n%4)*80,y:190+(n%3)*70,rot:0,width:p.width,height:p.height,zHeight:p.height,elevation:p.type==='borniol'?.2:.35,locked:false};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
+function addDecor(p){const n=state.objects.filter(o=>o.kind==='decor').length,zHeight=p.type==='wall'?2.5:p.type==='door'?2.04:p.type==='window'?1.2:.75,elevation=p.type==='window'?.9:0,o={id:uid('decor'),kind:'decor',type:p.type,name:p.name,x:430+(n%4)*90,y:160+(n%3)*80,rot:0,width:p.width,height:p.height,zHeight,elevation,locked:false};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
 
 function openAddDialog(){replaceLightId=null;showKinds();if(typeof addDialog.showModal==='function')addDialog.showModal();else addDialog.setAttribute('open','')}
 function closeAddDialog(){if(addDialog.open&&typeof addDialog.close==='function')addDialog.close();else addDialog.removeAttribute('open');replaceLightId=null}
@@ -404,18 +474,23 @@ function openSimpleChooser(kind){
 document.getElementById('openAddBtn').onclick=openAddDialog;document.getElementById('closeAddBtn').onclick=closeAddDialog;document.getElementById('backToKindsBtn').onclick=()=>{replaceLightId=null;showKinds()};document.getElementById('backSimpleBtn').onclick=showKinds;
 addKinds.querySelectorAll('[data-kind]').forEach(btn=>btn.onclick=()=>{const k=btn.dataset.kind;if(k==='light')openLightChooser();else if(k==='subject')addSubject();else if(k==='camera')addCamera();else openSimpleChooser(k)});
 addDialog.addEventListener('click',e=>{if(e.target===addDialog)closeAddDialog()});
-focalInput.addEventListener('input',()=>{state.focal=clamp(Number(focalInput.value)||50,12,300);render()});cameraModel.addEventListener('change',()=>{state.cameraModel=cameraModel.value;render()});
 
-document.getElementById('saveBtn').onclick=()=>{localStorage.setItem('bos-plan-feu-v04',JSON.stringify(state));flash('Plan sauvé')};
-document.getElementById('resetBtn').onclick=()=>{if(confirm('Réinitialiser le plan ?')){['bos-plan-feu-v04','bos-plan-feu-v03','bos-plan-feu-v02','bos-plan-feu-v01'].forEach(k=>localStorage.removeItem(k));seed();syncCameraUi();render()}};
+document.getElementById('saveBtn').onclick=()=>{localStorage.setItem('bos-plan-feu-v05',JSON.stringify(state));flash('Plan sauvé')};
+document.getElementById('resetBtn').onclick=()=>{if(confirm('Réinitialiser le plan ?')){['bos-plan-feu-v05','bos-plan-feu-v04','bos-plan-feu-v03','bos-plan-feu-v02','bos-plan-feu-v01'].forEach(k=>localStorage.removeItem(k));seed();render()}};
 function flash(txt){const b=document.getElementById('saveBtn'),old=b.textContent;b.textContent='✓ '+txt;setTimeout(()=>b.textContent=old,1200)}
 function exportPng(){
   const clone=stage.cloneNode(true);clone.setAttribute('width','1400');clone.setAttribute('height','868');const serializer=new XMLSerializer(),source=serializer.serializeToString(clone),blob=new Blob([source],{type:'image/svg+xml;charset=utf-8'}),url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=1400;c.height=868;const ctx=c.getContext('2d');ctx.fillStyle='#fbfcfe';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);c.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='BOS_Plan_Feu.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)},'image/png')};img.src=url;
 }
 document.getElementById('exportBtn').onclick=exportPng;
-function syncCameraUi(){cameraModel.value=state.cameraModel;focalInput.value=state.focal}
+function normalizeSceneObject(o){
+  if(o.kind==='light')normalizeLightObject(o);
+  if(o.kind==='camera')normalizeCameraObject(o);
+  if(o.kind==='decor'){if(o.zHeight===undefined)o.zHeight=o.type==='wall'?2.5:o.type==='door'?2.04:o.type==='window'?1.2:.75;if(o.elevation===undefined)o.elevation=o.type==='window'?.9:0}
+  if(o.kind==='accessory'){if(o.zHeight===undefined)o.zHeight=o.height||1.5;if(o.elevation===undefined)o.elevation=o.type==='borniol'?.2:.35;if(!o.short)o.short=o.type==='diffusion'?'DIFF':o.type==='negative'?'NEG':o.type==='reflector'?'REF':'BOR'}
+  if(o.locked===undefined)o.locked=false;return o;
+}
 function load(){
-  try{const raw=localStorage.getItem('bos-plan-feu-v04')||localStorage.getItem('bos-plan-feu-v03')||localStorage.getItem('bos-plan-feu-v02')||localStorage.getItem('bos-plan-feu-v01'),saved=JSON.parse(raw);if(saved&&Array.isArray(saved.objects)){state=saved;state.objects.forEach(o=>{if(o.kind==='light')normalizeLightObject(o);if(o.locked===undefined)o.locked=false})}else seed()}catch{seed()}
-  if(!cameras[state.cameraModel])state.cameraModel='Sony FX3';state.focal=Number(state.focal)||50;populateCameraSelect();syncCameraUi();render();
+  try{const raw=localStorage.getItem('bos-plan-feu-v05')||localStorage.getItem('bos-plan-feu-v04')||localStorage.getItem('bos-plan-feu-v03')||localStorage.getItem('bos-plan-feu-v02')||localStorage.getItem('bos-plan-feu-v01'),saved=JSON.parse(raw);if(saved&&Array.isArray(saved.objects)){state=saved;state.objects.forEach(normalizeSceneObject);if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null}else seed()}catch{seed()}
+  if(!cameras[state.cameraModel])state.cameraModel='Sony FX3';state.focal=Number(state.focal)||50;render();
 }
 window.addEventListener('resize',renderPreview);load();
