@@ -32,8 +32,8 @@
           <button class="add-main" id="openAddBtn"><span class="plus">+</span> Ajouter un élément</button>
         </div>
         <div class="toolbar-note">
-          <strong>V0.3</strong>
-          <span>Lumières Amaran + Aputure avec symbole dédié</span>
+          <strong>V0.4</strong>
+          <span>Catalogue BOS Light · accessoires · décor</span>
         </div>
       </section>
 
@@ -48,6 +48,8 @@
               <span><i class="dot camera-dot"></i>caméra</span>
               <span><i class="dot subject-dot"></i>sujet</span>
               <span><i class="dot light-dot"></i>lumière</span>
+              <span><i class="dot accessory-dot"></i>accessoire</span>
+              <span><i class="dot decor-dot"></i>décor</span>
             </div>
           </div>
           <div class="stage-wrap" id="stageWrap">
@@ -127,7 +129,7 @@
         <button class="kind-card" data-kind="light">
           <span class="kind-icon light-kind-icon">✦</span>
           <strong>Lumière</strong>
-          <small>Amaran · Aputure</small>
+          <small>Catalogue BOS Light</small>
         </button>
         <button class="kind-card" data-kind="subject">
           <span class="kind-icon subject-kind-icon">●</span>
@@ -139,22 +141,46 @@
           <strong>Caméra</strong>
           <small>Ajouter une caméra</small>
         </button>
+        <button class="kind-card" data-kind="accessory">
+          <span class="kind-icon accessory-kind-icon">◇</span>
+          <strong>Accessoire</strong>
+          <small>Diffusion · borniol · négatif · réflecteur</small>
+        </button>
+        <button class="kind-card" data-kind="decor">
+          <span class="kind-icon decor-kind-icon">⌑</span>
+          <strong>Décor</strong>
+          <small>Mur · porte · fenêtre · table</small>
+        </button>
       </div>
 
       <div id="lightChooser" class="light-chooser hidden">
         <div class="chooser-topline">
           <button class="back-btn" id="backToKindsBtn">← Éléments</button>
-          <div class="brand-tabs" role="tablist" aria-label="Marque">
-            <button class="brand-tab active" data-brand="Amaran">Amaran</button>
-            <button class="brand-tab" data-brand="Aputure">Aputure</button>
-          </div>
+          <div class="catalog-badge">Catalogue BOS Light</div>
         </div>
-        <div class="catalog-tools">
-          <input id="lightSearch" type="search" placeholder="Rechercher un modèle…" autocomplete="off" />
-          <select id="familyFilter" aria-label="Famille"></select>
+        <div class="choice-section">
+          <div class="choice-label">MARQUE</div>
+          <div class="choice-buttons two" id="brandChoices"></div>
         </div>
-        <div id="catalogCount" class="catalog-count"></div>
-        <div id="lightCatalog" class="light-catalog"></div>
+        <div class="choice-section">
+          <div class="choice-label">GAMME</div>
+          <div class="choice-buttons" id="familyChoices"></div>
+        </div>
+        <div class="choice-section">
+          <div class="choice-label">PUISSANCE / MODÈLE</div>
+          <div class="choice-buttons models" id="modelChoices"></div>
+        </div>
+        <div class="chooser-footnote" id="catalogCount"></div>
+      </div>
+
+      <div id="simpleChooser" class="simple-chooser hidden">
+        <div class="chooser-topline">
+          <button class="back-btn" id="backSimpleBtn">← Éléments</button>
+        </div>
+        <div class="choice-section">
+          <div class="choice-label" id="simpleLabel">TYPE</div>
+          <div class="simple-grid" id="simpleGrid"></div>
+        </div>
       </div>
     </div>
   </dialog>
