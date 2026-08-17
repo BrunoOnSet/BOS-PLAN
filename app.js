@@ -1,4 +1,4 @@
-const APP_VERSION='V1.31';
+const APP_VERSION='V1.33';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -598,7 +598,7 @@ function drawObject(o){
   if(o.kind==='camera'){
     g.appendChild(svgEl('circle',{r:36,class:'selection-ring'}));g.appendChild(svgEl('rect',{x:-21,y:-16,width:34,height:32,rx:7,class:'camera-body'}));g.appendChild(svgEl('polygon',{points:'13,-10 34,-17 34,17 13,10',class:'camera-lens'}));
   } else if(o.kind==='subject'){
-    g.appendChild(svgEl('circle',{r:34,class:'selection-ring'}));g.appendChild(svgEl('ellipse',{cx:0,cy:0,rx:19,ry:29,class:'subject-body'}));g.appendChild(svgEl('circle',{cx:17,cy:0,r:9,class:'subject-head'}));
+    g.appendChild(svgEl('circle',{r:34,class:'selection-ring'}));g.appendChild(svgEl('ellipse',{cx:0,cy:0,rx:19,ry:29,class:'subject-body'}));g.appendChild(svgEl('ellipse',{cx:12,cy:-7,rx:5.5,ry:4.8,class:'subject-eye'}));g.appendChild(svgEl('ellipse',{cx:12,cy:7,rx:5.5,ry:4.8,class:'subject-eye'}));g.appendChild(svgEl('circle',{cx:13.4,cy:-7,r:1.8,class:'subject-pupil'}));g.appendChild(svgEl('circle',{cx:13.4,cy:7,r:1.8,class:'subject-pupil'}));
   } else if(o.kind==='light'){
     g.appendChild(svgEl('circle',{r:48,class:'selection-ring'}));addLightModifier(g,o);addFixtureSymbol(g,o);labelY=62;
   } else if(o.kind==='accessory'){
@@ -846,21 +846,37 @@ function bboxTouchesFrame(b){return b&&b.x1>0&&b.x0<1600&&b.y1>0&&b.y0<900}
 function addSubjectPreview(cam,o){
   const bottom=projectWorld(cam,o.x,o.y,0),top=projectWorld(cam,o.x,o.y,o.height||1.75);if(!bottom||!top)return null;const h=Math.abs(bottom.y-top.y),midX=(bottom.x+top.x)/2,w=Math.max(12,h*.28),g=svgNode('g',{'data-depth':bottom.forward});
   const headR=Math.max(4,w*.27),headY=top.y+h*.12;g.appendChild(svgNode('circle',{cx:midX,cy:headY,r:headR,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX-w*.38,y:top.y+h*.23,width:w*.76,height:h*.43,rx:w*.22,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX-w*.32,y:top.y+h*.60,width:w*.25,height:h*.40,rx:w*.06,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX+w*.07,y:top.y+h*.60,width:w*.25,height:h*.40,rx:w*.06,class:'preview-subject'}));
-  const faceDelta=((((Number(o.rot||0)-((Number(cam.rot||0)+180)%360))+540)%360)-180),absDelta=Math.abs(faceDelta),turn=Math.max(-1,Math.min(1,faceDelta/90)),faceSize=headR*2;
+  const faceSize=headR*2;
   if(faceSize>16){
+    const a=rad(o.rot||0),forwardLen=.4*SCALE;
+    const frontPoint=projectWorld(cam,o.x+Math.cos(a)*forwardLen,o.y+Math.sin(a)*forwardLen,(o.height||1.75)*.9);
+    const screenDx=frontPoint?frontPoint.x-midX:0;
+    const dir=screenDx>=0?1:-1; // +1 = regarde vers la droite du cadre
+    const toCamX=(cam.x-o.x)/SCALE,toCamY=(cam.y-o.y)/SCALE,toCamLen=Math.hypot(toCamX,toCamY)||1;
+    const fwdX=Math.cos(a),fwdY=Math.sin(a);
+    const towardCam=(fwdX*(toCamX/toCamLen)+fwdY*(toCamY/toCamLen)); // 1 = face caméra, 0 = profil, -1 = dos caméra
     const eyeY=headY-headR*.10,eyeRx=Math.max(1.9,headR*.14),eyeRy=Math.max(1.6,headR*.11),pupilR=Math.max(1.1,headR*.06);
-    if(absDelta<55){
-      const spread=headR*.42,shift=turn*headR*.14,leftX=midX-spread+shift,rightX=midX+spread+shift,noseX=midX+turn*headR*.22;
-      g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx,ry:eyeRy,class:'preview-face-feature'}));
-      g.appendChild(svgNode('ellipse',{cx:rightX,cy:eyeY,rx:eyeRx,ry:eyeRy,class:'preview-face-feature'}));
-      g.appendChild(svgNode('circle',{cx:leftX+turn*eyeRx*.5,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
-      g.appendChild(svgNode('circle',{cx:rightX+turn*eyeRx*.5,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
-      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.03} L ${noseX+turn*headR*.16} ${headY+headR*.24} L ${noseX-headR*.05} ${headY+headR*.28}`,class:'preview-face-nose'}));
-    }else if(absDelta<125){
-      const dir=faceDelta>0?1:-1,eyeX=midX+dir*headR*.18,noseX=midX+dir*headR*.28;
-      g.appendChild(svgNode('ellipse',{cx:eyeX,cy:eyeY,rx:eyeRx,ry:eyeRy,class:'preview-face-feature'}));
-      g.appendChild(svgNode('circle',{cx:eyeX+dir*eyeRx*.25,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
-      g.appendChild(svgNode('path',{d:`M ${noseX-headR*.04} ${headY+headR*.00} Q ${noseX+dir*headR*.18} ${headY+headR*.18} ${noseX-headR*.02} ${headY+headR*.32}`,class:'preview-face-profile'}));
+    if(towardCam>0.35){
+      // Face / léger trois-quarts : deux yeux, nez légèrement orienté
+      const turnAmt=(1-towardCam)*.75;
+      const spread=headR*(.42-.08*turnAmt),shift=dir*headR*(.08+.10*turnAmt),noseX=midX+dir*headR*(.10+.12*turnAmt);
+      const leftX=midX-spread+shift,rightX=midX+spread+shift;
+      const farScale=1-turnAmt*.30,nearScale=1+turnAmt*.06;
+      const leftNear=dir<0,rightNear=dir>0;
+      g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx*(leftNear?nearScale:farScale),ry:eyeRy*(leftNear?nearScale:farScale),class:'preview-face-feature'}));
+      g.appendChild(svgNode('ellipse',{cx:rightX,cy:eyeY,rx:eyeRx*(rightNear?nearScale:farScale),ry:eyeRy*(rightNear?nearScale:farScale),class:'preview-face-feature'}));
+      g.appendChild(svgNode('circle',{cx:leftX+dir*eyeRx*.35,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('circle',{cx:rightX+dir*eyeRx*.35,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.02} L ${noseX+dir*headR*.12} ${headY+headR*.18} L ${noseX-dir*headR*.04} ${headY+headR*.30}`,class:'preview-face-nose'}));
+    }else if(towardCam>-0.2){
+      // Profil / fort trois-quarts : un oeil + nez profil, sens déterminé par la projection réelle dans le cadre
+      const eyeX=midX+dir*headR*.18,noseX=midX+dir*headR*.30;
+      g.appendChild(svgNode('ellipse',{cx:eyeX,cy:eyeY,rx:eyeRx*1.05,ry:eyeRy*1.05,class:'preview-face-feature'}));
+      g.appendChild(svgNode('circle',{cx:eyeX+dir*eyeRx*.22,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('path',{d:`M ${noseX-dir*headR*.04} ${headY+headR*.00} Q ${noseX+dir*headR*.18} ${headY+headR*.16} ${noseX-dir*headR*.02} ${headY+headR*.34}`,class:'preview-face-profile'}));
+    }else{
+      // Dos caméra : on évite les yeux/nez faux, simple arc de nuque discret
+      g.appendChild(svgNode('path',{d:`M ${midX-headR*.26} ${headY-headR*.06} Q ${midX} ${headY+headR*.12} ${midX+headR*.26} ${headY-headR*.06}`,class:'preview-face-back'}));
     }
   }
   g.appendChild(svgNode('text',{x:midX,y:Math.max(18,top.y-10),class:'preview-subject-label','text-anchor':'middle'},o.name));
@@ -956,7 +972,7 @@ function planThumbnailData(planState){
   const len=clamp(Number(planState?.planLength)||10,4,30),w=Math.max(400,Math.round(len*SCALE)),h=Math.round(w*STAGE_RATIO),TW=220,TH=Math.round(TW*h/w),sx=TW/w,sy=TH/h;
   const bg='<rect width="100%" height="100%" fill="#eef2f6"/>';
   const grid=[]; for(let x=0;x<=TW;x+=22)grid.push(`<line x1="${x}" y1="0" x2="${x}" y2="${TH}" stroke="#d7dde6" stroke-width="1"/>`); for(let y=0;y<=TH;y+=22)grid.push(`<line x1="0" y1="${y}" x2="${TW}" y2="${y}" stroke="#d7dde6" stroke-width="1"/>`);
-  const objs=(planState?.objects||[]).map(o=>{const x=(o.x||0)*sx,y=(o.y||0)*sy; if(o.kind==='camera')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><polygon points="-8,-5 8,0 -8,5" fill="#1b6fff"/><rect x="8" y="-7" width="14" height="14" rx="3" fill="#2d7cff"/></g>`; if(o.kind==='subject')return `<g transform="translate(${x},${y})"><ellipse cx="0" cy="0" rx="12" ry="8" fill="#1d2533" opacity=".95"/><circle cx="0" cy="6" r="3" fill="#f5f7fb"/></g>`; if(o.kind==='light')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><rect x="-11" y="-7" width="22" height="14" rx="4" fill="#ffbf3a" stroke="#8d6100" stroke-width="1.5"/><circle cx="8" cy="0" r="7" fill="#f6efcf" stroke="#8d6100" stroke-width="1.5"/></g>`; if(o.kind==='accessory')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="-14" y1="0" x2="14" y2="0" stroke="#9aa3ad" stroke-width="4" stroke-linecap="round"/></g>`; if(o.kind==='decor')return o.type==='wall'?`<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="${-(o.width||2)*50*sx/2}" y1="0" x2="${(o.width||2)*50*sx/2}" y2="0" stroke="#b7aa9a" stroke-width="4" stroke-linecap="square"/></g>`:''; return ''}).join('');
+  const objs=(planState?.objects||[]).map(o=>{const x=(o.x||0)*sx,y=(o.y||0)*sy; if(o.kind==='camera')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><polygon points="-8,-5 8,0 -8,5" fill="#1b6fff"/><rect x="8" y="-7" width="14" height="14" rx="3" fill="#2d7cff"/></g>`; if(o.kind==='subject')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><ellipse cx="0" cy="0" rx="12" ry="8" fill="#1d2533" opacity=".95"/><ellipse cx="6" cy="-2.8" rx="2.3" ry="2" fill="#f5f7fb"/><ellipse cx="6" cy="2.8" rx="2.3" ry="2" fill="#f5f7fb"/><circle cx="6.8" cy="-2.8" r=".8" fill="#1d2533"/><circle cx="6.8" cy="2.8" r=".8" fill="#1d2533"/></g>`; if(o.kind==='light')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><rect x="-11" y="-7" width="22" height="14" rx="4" fill="#ffbf3a" stroke="#8d6100" stroke-width="1.5"/><circle cx="8" cy="0" r="7" fill="#f6efcf" stroke="#8d6100" stroke-width="1.5"/></g>`; if(o.kind==='accessory')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="-14" y1="0" x2="14" y2="0" stroke="#9aa3ad" stroke-width="4" stroke-linecap="round"/></g>`; if(o.kind==='decor')return o.type==='wall'?`<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="${-(o.width||2)*50*sx/2}" y1="0" x2="${(o.width||2)*50*sx/2}" y2="0" stroke="#b7aa9a" stroke-width="4" stroke-linecap="square"/></g>`:''; return ''}).join('');
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${TW}" height="${TH}" viewBox="0 0 ${TW} ${TH}">${bg}${grid.join('')}${objs}</svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }
@@ -1008,7 +1024,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;seed();resetStageViewport();render();renderLibraryList()}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.31',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.33',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
