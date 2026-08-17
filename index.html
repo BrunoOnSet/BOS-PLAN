@@ -4,9 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0b6cff" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>BOS · Plan Feu</title>
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.11" />
+  <link rel="stylesheet" href="styles.css?v=1.11" />
 </head>
 <body>
   <div class="app-shell">
@@ -33,19 +36,16 @@
           <button class="add-main" id="openAddBtn"><span class="plus">+</span> Ajouter un élément</button>
         </div>
         <div class="plan-tools">
-          <label title="Aimante les déplacements au pas choisi. La grille visuelle reste à 25 cm / 1 m.">Aimantation
-            <select id="snapSelect">
-              <option value="0">Libre</option>
-              <option value="0.1">10 cm</option>
-              <option value="0.25" selected>25 cm</option>
-              <option value="0.5">50 cm</option>
-              <option value="1">1 m</option>
-            </select>
-          </label>
+          <div class="beam-global-control" title="Aimante les déplacements à la grille de 25 cm. La grille visuelle reste à 25 cm / 1 m.">
+            <span>Aimantation</span>
+            <button id="toggleSnapBtn" class="beam-toggle active" type="button" aria-pressed="true">Aimantation ON</button>
+          </div>
           <label>Infos
             <select id="labelsModeSelect">
               <option value="full">Complet</option>
               <option value="names">Noms</option>
+              <option value="lightcrew">Light crew</option>
+              <option value="direction">Réalisation</option>
               <option value="hidden">Masqué</option>
             </select>
           </label>
@@ -59,7 +59,7 @@
           </div>
         </div>
         <div class="toolbar-note">
-          <strong>V1.5</strong>
+          <strong id="appVersionBadge">V1.11</strong>
           <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
         </div>
       </section>
@@ -104,14 +104,19 @@
         </div>
 
         <aside class="inspector card" id="inspector">
-          <button class="inspector-head" id="toggleInspectorBtn" type="button" aria-expanded="true" aria-controls="inspectorBody">
+          <div class="inspector-head">
             <div>
               <h2>Réglages</h2>
-              <p id="selectionHint">Sélectionne un élément</p>
+              <div class="selection-model-row">
+                <p id="selectionHint">Sélectionne un élément</p>
+                <button id="changeFixtureHeader" class="header-model-change hidden" type="button" title="Changer de modèle" aria-label="Changer de modèle">⌄</button>
+              </div>
             </div>
-            <span class="inspector-toggle-label" id="inspectorToggleLabel">Masquer</span>
-            <span class="inspector-chevron" aria-hidden="true">⌃</span>
-          </button>
+            <button class="inspector-collapse-btn" id="toggleInspectorBtn" type="button" aria-expanded="true" aria-controls="inspectorBody">
+              <span class="inspector-toggle-label" id="inspectorToggleLabel">Masquer</span>
+              <span class="inspector-chevron" aria-hidden="true">⌃</span>
+            </button>
+          </div>
           <div id="inspectorBody">
             <div id="inspectorEmpty" class="empty-state">
               <div class="empty-icon">↖</div>
@@ -237,6 +242,6 @@
     </div>
   </dialog>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=1.11"></script>
 </body>
 </html>

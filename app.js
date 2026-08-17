@@ -1,3 +1,4 @@
+const APP_VERSION='V1.9';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -9,6 +10,7 @@ const inspectorToggleLabel=document.getElementById('inspectorToggleLabel');
 const inspectorEmpty=document.getElementById('inspectorEmpty');
 const inspectorFields=document.getElementById('inspectorFields');
 const selectionHint=document.getElementById('selectionHint');
+const changeFixtureHeader=document.getElementById('changeFixtureHeader');
 const cameraReadout=document.getElementById('cameraReadout');
 const cameraMonitors=document.getElementById('cameraMonitors');
 const previewTabs=document.getElementById('previewTabs');
@@ -23,7 +25,7 @@ const modelChoices=document.getElementById('modelChoices');
 const catalogCount=document.getElementById('catalogCount');
 const simpleGrid=document.getElementById('simpleGrid');
 const simpleLabel=document.getElementById('simpleLabel');
-const snapSelect=document.getElementById('snapSelect');
+const toggleSnapBtn=document.getElementById('toggleSnapBtn');
 const labelsModeSelect=document.getElementById('labelsModeSelect');
 const toggleBeamsBtn=document.getElementById('toggleBeamsBtn');
 const gridOpacityRange=document.getElementById('gridOpacityRange');
@@ -252,7 +254,7 @@ function snapValue(v){const step=Number(state.snap)||0;return step?Math.round(v/
 function ensureStateDefaults(){
   if(!Array.isArray(state.objects))state.objects=[];
   state.snap=[0,.1,.25,.5,1].includes(Number(state.snap))?Number(state.snap):.25;
-  if(!['full','names','hidden'].includes(state.labelsMode))state.labelsMode='full';
+  if(!['full','names','lightcrew','direction','hidden'].includes(state.labelsMode))state.labelsMode='full';
   if(state.beamsVisible===undefined)state.beamsVisible=true;
   state.gridOpacity=clamp(Number(state.gridOpacity)||.5,.1,1);
   state.planName=state.planName||'Plan sans titre';
@@ -280,7 +282,7 @@ function updateGridOpacity(){
   if(gridOpacityRange)gridOpacityRange.value=String(Math.round(v*100));
   if(gridOpacityValue)gridOpacityValue.textContent=`${Math.round(v*100)} %`;
 }
-function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(snapSelect)snapSelect.value=String(Number(state.snap)||0);if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(toggleBeamsBtn){const on=state.beamsVisible!==false;toggleBeamsBtn.classList.toggle('active',on);toggleBeamsBtn.textContent=on?'Faisceaux ON':'Faisceaux OFF';toggleBeamsBtn.setAttribute('aria-pressed',String(on))}updateGridOpacity()}
+function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(toggleSnapBtn){const on=Number(state.snap)>0;toggleSnapBtn.classList.toggle('active',on);toggleSnapBtn.textContent=on?'Aimantation ON':'Aimantation OFF';toggleSnapBtn.setAttribute('aria-pressed',String(on))}if(toggleBeamsBtn){const on=state.beamsVisible!==false;toggleBeamsBtn.classList.toggle('active',on);toggleBeamsBtn.textContent=on?'Faisceaux ON':'Faisceaux OFF';toggleBeamsBtn.setAttribute('aria-pressed',String(on))}updateGridOpacity()}
 function snapshotState(){const copy=deepClone(state);copy.selected=null;return copy}
 function persistCurrent(){
   try{localStorage.setItem(CURRENT_KEY,JSON.stringify(snapshotState()));if(state.planId){const rec=library.plans.find(p=>p.id===state.planId);if(rec){rec.name=state.planName;rec.folderId=state.folderId;rec.updatedAt=Date.now();rec.state=snapshotState();persistLibrary()}}}catch(e){console.warn('Autosave BOS',e)}
@@ -498,6 +500,34 @@ function drawDecorSymbol(g,o){
   g.appendChild(svgEl('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:7,class:'table-shape'}));g.appendChild(svgEl('rect',{x:-w/2+6,y:-h/2+6,width:w-12,height:h-12,rx:5,class:'table-inner'}));return {w,h};
 }
 
+function modelDisplayName(o){
+  if(!o||o.kind!=='light')return o?.name||'';
+  const p=presetForObject(o);
+  const n=p?.name||o.name||'Projecteur';
+  return n.replace(/^amaran\b/i,'Amaran').replace(/^aputure\b/i,'Aputure');
+}
+function infoModeForObject(o){
+  const mode=state.labelsMode||'full';
+  if(mode==='hidden')return 'hidden';
+  if(mode==='full')return 'full';
+  if(mode==='names')return 'names';
+  if(mode==='lightcrew')return (o.kind==='light'||o.kind==='accessory')?'full':'names';
+  if(mode==='direction')return (o.kind==='light'||o.kind==='accessory')?'hidden':'names';
+  return 'names';
+}
+function deleteObjectById(id){
+  const o=state.objects.find(x=>x.id===id);if(!o)return;
+  state.objects=state.objects.filter(x=>x.id!==id);
+  if(state.activePreviewCamera===id)state.activePreviewCamera=state.objects.find(x=>x.kind==='camera')?.id||null;
+  if(state.selected===id)state.selected=null;
+  render();
+}
+function beamSliderMax(o){
+  if(!o||o.kind!=='light')return 179;
+  if(o.form==='nova-narrow')return 60;
+  if(['strip','tube','pixel-bar','mat','panel','panel-wide','nova'].includes(o.form))return 120;
+  return 179;
+}
 function drawObject(o){
   if(o.kind==='light')normalizeLightObject(o);
   const g=svgEl('g',{class:`object ${state.selected===o.id?'selected':''} ${o.locked?'locked':''}`,transform:`translate(${o.x} ${o.y}) rotate(${o.rot})`,'data-id':o.id});
@@ -514,11 +544,19 @@ function drawObject(o){
     const d=drawDecorSymbol(g,o);hitW=d.w+24;hitH=d.h+24;labelY=d.h/2+28;g.appendChild(svgEl('rect',{x:-hitW/2,y:-hitH/2,width:hitW,height:hitH,rx:8,class:'selection-box'}));
   }
   g.appendChild(svgEl('rect',{x:-hitW/2,y:-hitH/2,width:hitW,height:hitH,class:'hit'}));
-  if(state.labelsMode!=='hidden'&&o.labelVisible!==false){
+  if(state.selected===o.id){
+    const trash=svgEl('g',{class:'object-trash',transform:`translate(0 ${-hitH/2-25}) rotate(${-o.rot})`,'data-id':o.id});
+    trash.appendChild(svgEl('circle',{cx:0,cy:0,r:13,class:'object-trash-bg'}));
+    trash.appendChild(svgEl('path',{d:'M -5 -5 L 5 -5 M -3 -8 L 3 -8 M -4 -3 L -3 6 L 3 6 L 4 -3 M -1 -2 L -1 4 M 1 -2 L 1 4',class:'object-trash-icon'}));
+    trash.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();deleteObjectById(o.id)});
+    g.appendChild(trash);
+  }
+  const objectInfoMode=infoModeForObject(o);
+  if(objectInfoMode!=='hidden'){
     const pos=o.labelPos||'auto';let lx=0,ly=labelY,anchor='middle';
     if(pos==='top'){ly=-hitH/2-18}else if(pos==='left'){lx=-hitW/2-12;ly=0;anchor='end'}else if(pos==='right'){lx=hitW/2+12;ly=0;anchor='start'}else if(pos==='bottom'){ly=hitH/2+24}
     const label=svgEl('g',{transform:`rotate(${-o.rot}) translate(${lx} ${ly})`}),t=svgEl('text',{class:'object-label','text-anchor':anchor});t.textContent=o.name;label.appendChild(t);
-    if(state.labelsMode==='full'){
+    if(objectInfoMode==='full'){
       if(o.kind==='light'){const st=svgEl('text',{class:'object-sub','text-anchor':anchor,y:17});const modLabel=o.modifier==='softbox'?'Softbox':o.modifier==='umbrella-reflect'?'Parapluie réflexion':o.modifier==='umbrella-diffusion'?'Parapluie diffusion':'';st.textContent=`${o.family||'Lumière'}${modLabel?' · '+modLabel:''} · ${o.intensity}% · ${lightColorText(o)}`;label.appendChild(st)}
       else if(o.kind==='accessory'||o.kind==='decor'){const st=svgEl('text',{class:'object-sub','text-anchor':anchor,y:17});st.textContent=`${(o.width||0).toFixed(1)} × ${(o.height||0).toFixed(1)} m${o.locked?' · verrouillé':''}`;label.appendChild(st)}
     }
@@ -568,8 +606,9 @@ function selected(){return state.objects.find(o=>o.id===state.selected)}
 function kindLabel(o){return o.kind==='camera'?(o.name||'Caméra'):o.kind==='subject'?(o.name||'Personnage'):o.kind==='light'?(o.name||'Projecteur'):o.kind==='accessory'?(o.name||'Accessoire'):(o.name||'Décor')}
 function toggleButtons(key,current,options){return `<div class="inspector-choice" data-choice="${key}">${options.map(([value,label])=>`<button data-value="${esc(value)}" class="${current===value?'active':''}">${esc(label)}</button>`).join('')}</div>`}
 function renderInspector(){
-  const o=selected();if(!o){inspectorEmpty.classList.remove('hidden');inspectorFields.classList.add('hidden');selectionHint.textContent='Sélectionne un élément';return}
-  inspectorEmpty.classList.add('hidden');inspectorFields.classList.remove('hidden');selectionHint.textContent=kindLabel(o);
+  const o=selected();if(!o){inspectorEmpty.classList.remove('hidden');inspectorFields.classList.add('hidden');selectionHint.textContent='Sélectionne un élément';if(changeFixtureHeader)changeFixtureHeader.classList.add('hidden');return}
+  inspectorEmpty.classList.add('hidden');inspectorFields.classList.remove('hidden');selectionHint.textContent=o.kind==='light'?modelDisplayName(o):kindLabel(o);
+  if(changeFixtureHeader){changeFixtureHeader.classList.toggle('hidden',o.kind!=='light');changeFixtureHeader.onclick=o.kind==='light'?(()=>openLightChooser(o.id)):null}
   if(o.kind==='camera')normalizeCameraObject(o);
   let html=`<div class="field"><label>${o.kind==='light'?'Nom personnalisé':'Nom'}</label><input data-k="name" value="${esc(o.name)}"></div>`;
   if(o.kind==='camera'){
@@ -592,32 +631,33 @@ function renderInspector(){
   }
   if(o.kind==='light'){
     html+=`<div class="field"><label>Accessoire lumière</label>${toggleButtons('modifier',o.modifier||'none',supportsSoftbox(o)?[['none','Nu'],['softbox','Softbox'],['umbrella-reflect','Parapluie réflexion'],['umbrella-diffusion','Parapluie diffusion']]:[['none','Nu']])}</div>`;
-    if(o.modifier&&o.modifier!=='none')html+=`<div class="field"><label>${o.modifier.startsWith('umbrella')?'Diamètre parapluie':'Taille accessoire'}</label><div class="field-inline"><input data-k="modifierSize" type="number" min="0.3" max="3" step="0.05" value="${Number(o.modifierSize||.9).toFixed(2)}"><span class="unit">m</span></div></div>`;
+    if(o.modifier&&o.modifier!=='none'){
+      const cm=Math.round((Number(o.modifierSize)||.9)*100),label=o.modifier.startsWith('umbrella')?'Diamètre parapluie':'Taille accessoire';
+      html+=`<div class="field slider-field"><div class="slider-head"><label>${label}</label><strong data-slider-out="modifierSize">${cm} cm</strong></div><input data-k="modifierSize" data-convert="cm" type="range" min="30" max="300" step="5" value="${cm}"></div>`;
+    }
     const capability=lightCapability(o);
-    html+=`<div class="field"><label>Intensité</label><div class="field-inline"><input data-k="intensity" type="range" min="0" max="100" value="${o.intensity}"><span class="unit">${o.intensity}%</span></div></div>`;
+    html+=`<div class="field slider-field"><div class="slider-head"><label>Intensité</label><strong data-slider-out="intensity">${Math.round(o.intensity)} %</strong></div><input data-k="intensity" type="range" min="0" max="100" step="1" value="${o.intensity}"></div>`;
     if(capability==='color'){
       html+=`<div class="field"><label>Mode couleur</label>${toggleButtons('colorMode',o.colorMode||'cct',[['cct','Température'],['hsi','HSI']])}</div>`;
-      if((o.colorMode||'cct')==='hsi')html+=`<div class="field-grid"><div class="field"><label>Hue</label><div class="field-inline"><input data-k="hue" type="number" min="0" max="360" step="1" value="${Math.round(o.hue||0)}"><span class="unit">°</span></div></div><div class="field"><label>Saturation</label><div class="field-inline"><input data-k="saturation" type="range" min="0" max="100" step="1" value="${Math.round(o.saturation??100)}"><span class="unit">${Math.round(o.saturation??100)}%</span></div></div></div>`;
-      else html+=`<div class="field"><label>Température de couleur</label><div class="field-inline"><input data-k="cct" type="number" min="2000" max="10000" step="50" value="${Math.round(o.cct||5600)}"><span class="unit">K</span></div></div>`;
+      if((o.colorMode||'cct')==='hsi'){
+        html+=`<div class="field-grid"><div class="field"><label>Hue</label><div class="field-inline"><input data-k="hue" type="number" min="0" max="360" step="1" value="${Math.round(o.hue||0)}"><span class="unit">°</span></div></div><div class="field slider-field"><div class="slider-head"><label>Saturation</label><strong data-slider-out="saturation">${Math.round(o.saturation??100)} %</strong></div><input data-k="saturation" type="range" min="0" max="100" step="1" value="${Math.round(o.saturation??100)}"></div></div>`;
+      } else {
+        html+=`<div class="field slider-field"><div class="slider-head"><label>Température de couleur</label><strong data-slider-out="cct">${Math.round(o.cct||5600)} K</strong></div><input data-k="cct" type="range" min="2000" max="10000" step="100" value="${Math.round(o.cct||5600)}"></div>`;
+      }
     } else if(capability==='bicolor') {
-      html+=`<div class="field"><label>Température de couleur</label><div class="field-inline"><input data-k="cct" type="number" min="2000" max="10000" step="50" value="${Math.round(o.cct||5600)}"><span class="unit">K</span></div></div>`;
+      html+=`<div class="field slider-field"><div class="slider-head"><label>Température de couleur</label><strong data-slider-out="cct">${Math.round(o.cct||5600)} K</strong></div><input data-k="cct" type="range" min="2000" max="10000" step="100" value="${Math.round(o.cct||5600)}"></div>`;
     } else {
       html+=`<div class="field"><label>Température fixe</label><div class="field-inline"><input disabled value="${Math.round(o.cct||5600)}"><span class="unit">K</span></div></div>`;
     }
-    html+=`<div class="field"><label>Ouverture du cône (schématique)</label><div class="field-inline"><input data-k="beam" type="number" min="4" max="179" value="${o.beam}"><span class="unit">°</span></div><small class="field-help">Valeur indicative pour le dessin du plan, pas une donnée photométrique garantie.</small></div>`;
-    html+=`<button class="change-fixture" id="changeFixtureBtn">Changer de modèle</button>`;
+    const beamMax=beamSliderMax(o),beamValue=Math.min(beamMax,Math.max(4,Math.round(Number(o.beam)||55)));
+    html+=`<div class="field slider-field"><div class="slider-head"><label>Ouverture du cône</label><strong data-slider-out="beam">${beamValue}°</strong></div><input data-k="beam" type="range" min="4" max="${beamMax}" step="1" value="${beamValue}"><small class="field-help">Schématique : sert à visualiser l'ouverture sur le plan.</small></div>`;
   }
-  if(o.labelVisible===undefined)o.labelVisible=true;if(!o.labelPos)o.labelPos='auto';
-  html+=`<div class="field-divider"></div><div class="field"><label>Informations sur le plan</label><label class="label-row"><span>Afficher les infos</span><input id="labelVisibleSelected" type="checkbox" ${o.labelVisible!==false?'checked':''}></label><div class="inspector-choice five" data-choice="labelPos">${[['auto','Auto'],['top','Haut'],['bottom','Bas'],['left','Gauche'],['right','Droite']].map(([v,l])=>`<button data-value="${v}" class="${o.labelPos===v?'active':''}">${l}</button>`).join('')}</div></div>`;
   if(o.kind==='accessory'||o.kind==='decor')html+=`<label class="lock-row"><input id="lockSelected" type="checkbox" ${o.locked?'checked':''}> <span>Verrouiller la position</span></label>`;
-  html+=`<button class="danger" id="deleteSelected">Supprimer cet élément</button>`;inspectorFields.innerHTML=html;
-  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;const key=inp.dataset.k;let val=inp.value;if(['height','width','zHeight','elevation','intensity','beam','focal','modifierSize','cct','hue','saturation'].includes(key))val=Number(val);obj[key]=val;if(key==='intensity'||key==='saturation'){const u=inp.parentElement?.querySelector('.unit');if(u)u.textContent=`${val}%`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
+  inspectorFields.innerHTML=html;
+  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;const key=inp.dataset.k;let val=inp.value;if(['height','width','zHeight','elevation','intensity','beam','focal','modifierSize','cct','hue','saturation'].includes(key))val=Number(val);if(inp.dataset.convert==='cm')val=val/100;obj[key]=val;const out=inp.parentElement?.querySelector(`[data-slider-out="${key}"]`);if(out){const shown=inp.dataset.convert==='cm'?Math.round(Number(inp.value)):(key==='cct'?Math.round(Number(inp.value)):(key==='beam'?Math.round(Number(inp.value)):Math.round(Number(inp.value))));out.textContent=key==='cct'?`${shown} K`:key==='beam'?`${shown}°`:inp.dataset.convert==='cm'?`${shown} cm`:`${shown} %`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
   const camModel=document.getElementById('selectedCameraModel');if(camModel)camModel.onchange=()=>{const obj=selected();if(!obj||obj.kind!=='camera')return;obj.cameraModel=camModel.value;state.activePreviewCamera=obj.id;renderCanvas()};
   inspectorFields.querySelectorAll('[data-choice] button').forEach(btn=>btn.onclick=()=>{const obj=selected();if(!obj)return;const key=btn.parentElement.dataset.choice;obj[key]=btn.dataset.value;if(key==='modifier'){if(obj.modifier==='softbox'&&!obj.modifierSize)obj.modifierSize=.9;if(obj.modifier?.startsWith('umbrella'))obj.modifierSize=Number(obj.modifierSize)||1.05}render()});
-  const labelVisible=document.getElementById('labelVisibleSelected');if(labelVisible)labelVisible.onchange=()=>{o.labelVisible=labelVisible.checked;render()};
   const lock=document.getElementById('lockSelected');if(lock)lock.onchange=()=>{o.locked=lock.checked;render()};
-  document.getElementById('deleteSelected').onclick=()=>{state.objects=state.objects.filter(x=>x.id!==o.id);if(state.activePreviewCamera===o.id)state.activePreviewCamera=state.objects.find(x=>x.kind==='camera')?.id||null;state.selected=null;render()};
-  const change=document.getElementById('changeFixtureBtn');if(change)change.onclick=()=>openLightChooser(o.id);
 }
 function nearestSubjectDistance(o){const ss=state.objects.filter(x=>x.kind==='subject');if(!ss.length)return 0;return Math.min(...ss.map(s=>dist(o,s)))}
 
@@ -751,7 +791,7 @@ function renderPreview(){
   const cams=state.objects.filter(o=>o.kind==='camera').map(normalizeCameraObject);cameraMonitors.innerHTML='';previewTabs.innerHTML='';
   if(!cams.length){previewTabs.classList.add('hidden');cameraReadout.textContent='Ajoute une caméra pour afficher le cadre.';cameraMonitors.innerHTML='<div class="no-camera-preview">Ajoute une caméra au plan pour voir son cadre.</div>';return}
   if(!cams.some(c=>c.id===state.activePreviewCamera))state.activePreviewCamera=cams[0].id;
-  if(cams.length===1){previewTabs.classList.add('hidden');cameraReadout.textContent='1 caméra · la prévisualisation suit sa position, sa focale et son capteur.';cameraMonitors.className='camera-monitors one';cameraMonitors.appendChild(makeMonitorCard(cams[0]));return}
+  if(cams.length===1){previewTabs.classList.add('hidden');cameraReadout.textContent='';cameraMonitors.className='camera-monitors one';cameraMonitors.appendChild(makeMonitorCard(cams[0]));return}
   if(cams.length===2){previewTabs.classList.add('hidden');cameraReadout.textContent='2 caméras · vues affichées simultanément.';cameraMonitors.className='camera-monitors two';cams.forEach(c=>cameraMonitors.appendChild(makeMonitorCard(c,true)));return}
   previewTabs.classList.remove('hidden');cameraReadout.textContent=`${cams.length} caméras · sélectionne la vue à afficher.`;cams.forEach(c=>{const b=document.createElement('button');b.className='preview-tab'+(c.id===state.activePreviewCamera?' active':'');b.textContent=c.name;b.onclick=()=>{state.activePreviewCamera=c.id;renderPreview()};previewTabs.appendChild(b)});cameraMonitors.className='camera-monitors one';cameraMonitors.appendChild(makeMonitorCard(cams.find(c=>c.id===state.activePreviewCamera)||cams[0]));
 }
@@ -826,7 +866,7 @@ function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();resetStageViewport();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;seed();render();renderLibraryList()}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.8',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.11',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
@@ -873,7 +913,7 @@ function exportPng(){
   img.onerror=()=>{URL.revokeObjectURL(url);alert("L’export PNG n’a pas pu être généré sur ce navigateur.")};img.src=url;
 }
 document.getElementById('exportBtn').onclick=exportPng;
-snapSelect.onchange=()=>{state.snap=Number(snapSelect.value)||0;renderCanvas()};
+if(toggleSnapBtn)toggleSnapBtn.onclick=()=>{state.snap=Number(state.snap)>0?0:.25;updatePlanBadge();renderCanvas()};
 labelsModeSelect.onchange=()=>{state.labelsMode=labelsModeSelect.value;renderCanvas()};
 toggleBeamsBtn.onclick=()=>{state.beamsVisible=state.beamsVisible===false;updatePlanBadge();renderCanvas()};
 if(gridOpacityRange){gridOpacityRange.oninput=()=>{state.gridOpacity=clamp(Number(gridOpacityRange.value)/100,.1,1);updateGridOpacity();scheduleAutosave()};gridOpacityRange.onchange=()=>persistCurrent()}
@@ -886,6 +926,7 @@ function normalizeSceneObject(o){
   if(o.locked===undefined)o.locked=false;if(o.labelVisible===undefined)o.labelVisible=true;if(!o.labelPos)o.labelPos='auto';return o;
 }
 function load(){
+  const versionBadge=document.getElementById('appVersionBadge');if(versionBadge)versionBadge.textContent=APP_VERSION;
   loadLibrary();
   try{
     const raw=localStorage.getItem(CURRENT_KEY)||localStorage.getItem('bos-plan-feu-v05')||localStorage.getItem('bos-plan-feu-v04')||localStorage.getItem('bos-plan-feu-v03')||localStorage.getItem('bos-plan-feu-v02')||localStorage.getItem('bos-plan-feu-v01');

@@ -1,4 +1,4 @@
-BOS · PLAN FEU — V1.5
+BOS · PLAN FEU — V1.11
 
 Nouveautés :
 - Réglages repliables : bouton « Masquer / Afficher » pour libérer de la place, particulièrement utile sur téléphone avant la vue caméra.
@@ -7,7 +7,7 @@ Nouveautés :
 - Sources plates / linéaires : correction de l’orientation du faisceau pour le SM5c et les formes strip / tube / pixel bar. Le faisceau part maintenant perpendiculairement à la longueur de l’icône.
 - Le cône schématique des sources linéaires très ouvertes est plafonné à 60° pour ne plus envahir tout le plan.
 
-Navigation mobile V1.4 conservée : déplacement tactile, pinch-to-zoom et Recentrer.
+Navigation mobile V1.11 conservée : déplacement tactile, pinch-to-zoom et Recentrer.
 
 Échelle : 1 grand carreau = 1 m ; petit carreau = 25 cm.
 Aimantation : Libre / 10 cm / 25 cm / 50 cm / 1 m.
