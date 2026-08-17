@@ -8,8 +8,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>BOS · Plan Feu</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.33" />
-  <link rel="stylesheet" href="styles.css?v=1.33" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.35" />
+  <link rel="stylesheet" href="styles.css?v=1.35" />
 </head>
 <body>
   <div class="app-shell">
@@ -28,13 +28,57 @@
           </label>
         </div>
       </div>
-      <div class="top-actions">
-        <button class="ghost" id="importProjectBtn">Importer un projet</button>
-        <button class="ghost" id="shareProjectBtn">Partager une copie</button>
-        <button class="ghost" id="resetBtn">Créer un nouveau plan</button>
-        <button class="ghost" id="libraryBtn">Mes plans</button>
-        <button class="ghost" id="saveBtn">Sauver</button>
-        <button class="primary" id="exportBtn">Exporter PNG</button>
+      <div class="top-actions icon-actions">
+        <button class="top-tool" id="importProjectBtn" type="button" title="Importer un projet">
+          <span class="tool-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M5 19h14"/><rect x="4" y="2.5" width="16" height="19" rx="3" opacity=".18"/></svg>
+          </span>
+          <span class="tool-label">Importer</span>
+        </button>
+
+        <div class="top-tool-wrap export-wrap">
+          <button class="top-tool" id="exportMenuBtn" type="button" title="Exporter" aria-haspopup="menu" aria-expanded="false">
+            <span class="tool-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M16 13l-4-4-4 4"/><path d="M5 22h14"/><rect x="4" y="2.5" width="16" height="19" rx="3" opacity=".18"/></svg>
+            </span>
+            <span class="tool-label">Exporter</span>
+          </button>
+          <div class="export-popover" id="exportPopover" hidden>
+            <button class="export-option" id="shareProjectBtn" type="button">
+              <span class="export-option-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.8l6.8-4.1M8.6 13.2l6.8 4.1"/></svg>
+              </span>
+              <span>Partager une copie du plan</span>
+            </button>
+            <button class="export-option" id="exportBtn" type="button">
+              <span class="export-option-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 16l3-4 2.5 3 2-2.5L18 16"/></svg>
+              </span>
+              <span>Exporter un PNG</span>
+            </button>
+          </div>
+        </div>
+
+        <button class="top-tool" id="resetBtn" type="button" title="Créer un nouveau plan">
+          <span class="tool-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>
+          </span>
+          <span class="tool-label">Nouveau plan</span>
+        </button>
+
+        <button class="top-tool" id="libraryBtn" type="button" title="Mes plans">
+          <span class="tool-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h7l2 2h9v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 8V6a2 2 0 0 1 2-2h5l2 2h4"/></svg>
+          </span>
+          <span class="tool-label">Mes plans</span>
+        </button>
+
+        <button class="top-tool" id="saveBtn" type="button" title="Enregistrer le plan">
+          <span class="tool-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h12l2 2v14H5z"/><path d="M8 4v5h8V4"/><path d="M8 18h8"/></svg>
+          </span>
+          <span class="tool-label">Enregistrer</span>
+        </button>
         <input id="importProjectInput" type="file" accept=".json,.bosplan.json,application/json" hidden>
       </div>
     </header>
@@ -72,7 +116,7 @@
             </div>
           </div>
           <div class="toolbar-note">
-            <strong id="appVersionBadge">V1.33</strong>
+            <strong id="appVersionBadge">V1.35</strong>
             <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
           </div>
         </div>
@@ -258,6 +302,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.33"></script>
+  <script src="app.js?v=1.35"></script>
 </body>
 </html>

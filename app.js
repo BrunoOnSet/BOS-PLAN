@@ -1,4 +1,4 @@
-const APP_VERSION='V1.33';
+const APP_VERSION='V1.35';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -41,6 +41,9 @@ const folderSelect=document.getElementById('folderSelect');
 const planLibraryList=document.getElementById('planLibraryList');
 const shareProjectBtn=document.getElementById('shareProjectBtn');
 const importProjectBtn=document.getElementById('importProjectBtn');
+const exportMenuBtn=document.getElementById('exportMenuBtn');
+const exportPopover=document.getElementById('exportPopover');
+const exportBtn=document.getElementById('exportBtn');
 const importProjectInput=document.getElementById('importProjectInput');
 const stageWrap=document.getElementById('stageWrap');
 const zoomReadout=document.getElementById('zoomReadout');
@@ -598,7 +601,7 @@ function drawObject(o){
   if(o.kind==='camera'){
     g.appendChild(svgEl('circle',{r:36,class:'selection-ring'}));g.appendChild(svgEl('rect',{x:-21,y:-16,width:34,height:32,rx:7,class:'camera-body'}));g.appendChild(svgEl('polygon',{points:'13,-10 34,-17 34,17 13,10',class:'camera-lens'}));
   } else if(o.kind==='subject'){
-    g.appendChild(svgEl('circle',{r:34,class:'selection-ring'}));g.appendChild(svgEl('ellipse',{cx:0,cy:0,rx:19,ry:29,class:'subject-body'}));g.appendChild(svgEl('ellipse',{cx:12,cy:-7,rx:5.5,ry:4.8,class:'subject-eye'}));g.appendChild(svgEl('ellipse',{cx:12,cy:7,rx:5.5,ry:4.8,class:'subject-eye'}));g.appendChild(svgEl('circle',{cx:13.4,cy:-7,r:1.8,class:'subject-pupil'}));g.appendChild(svgEl('circle',{cx:13.4,cy:7,r:1.8,class:'subject-pupil'}));
+    g.appendChild(svgEl('circle',{r:34,class:'selection-ring'}));g.appendChild(svgEl('circle',{cx:0,cy:0,r:22,class:'subject-body'}));g.appendChild(svgEl('polygon',{points:'12,0 2,-6 2,6',class:'subject-nose'}));
   } else if(o.kind==='light'){
     g.appendChild(svgEl('circle',{r:48,class:'selection-ring'}));addLightModifier(g,o);addFixtureSymbol(g,o);labelY=62;
   } else if(o.kind==='accessory'){
@@ -856,8 +859,16 @@ function addSubjectPreview(cam,o){
     const fwdX=Math.cos(a),fwdY=Math.sin(a);
     const towardCam=(fwdX*(toCamX/toCamLen)+fwdY*(toCamY/toCamLen)); // 1 = face caméra, 0 = profil, -1 = dos caméra
     const eyeY=headY-headR*.10,eyeRx=Math.max(1.9,headR*.14),eyeRy=Math.max(1.6,headR*.11),pupilR=Math.max(1.1,headR*.06);
-    if(towardCam>0.35){
-      // Face / léger trois-quarts : deux yeux, nez légèrement orienté
+    if(towardCam>0.8){
+      // Regard caméra franc
+      const spread=headR*.40,leftX=midX-spread,rightX=midX+spread,noseX=midX;
+      g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx,ry:eyeRy,class:'preview-face-feature'}));
+      g.appendChild(svgNode('ellipse',{cx:rightX,cy:eyeY,rx:eyeRx,ry:eyeRy,class:'preview-face-feature'}));
+      g.appendChild(svgNode('circle',{cx:leftX,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('circle',{cx:rightX,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.02} L ${noseX+headR*.05} ${headY+headR*.18} L ${noseX-headR*.05} ${headY+headR*.18} Z`,class:'preview-face-nose'}));
+    }else if(towardCam>0.35){
+      // Léger trois-quarts : deux yeux, nez légèrement orienté
       const turnAmt=(1-towardCam)*.75;
       const spread=headR*(.42-.08*turnAmt),shift=dir*headR*(.08+.10*turnAmt),noseX=midX+dir*headR*(.10+.12*turnAmt);
       const leftX=midX-spread+shift,rightX=midX+spread+shift;
@@ -972,7 +983,7 @@ function planThumbnailData(planState){
   const len=clamp(Number(planState?.planLength)||10,4,30),w=Math.max(400,Math.round(len*SCALE)),h=Math.round(w*STAGE_RATIO),TW=220,TH=Math.round(TW*h/w),sx=TW/w,sy=TH/h;
   const bg='<rect width="100%" height="100%" fill="#eef2f6"/>';
   const grid=[]; for(let x=0;x<=TW;x+=22)grid.push(`<line x1="${x}" y1="0" x2="${x}" y2="${TH}" stroke="#d7dde6" stroke-width="1"/>`); for(let y=0;y<=TH;y+=22)grid.push(`<line x1="0" y1="${y}" x2="${TW}" y2="${y}" stroke="#d7dde6" stroke-width="1"/>`);
-  const objs=(planState?.objects||[]).map(o=>{const x=(o.x||0)*sx,y=(o.y||0)*sy; if(o.kind==='camera')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><polygon points="-8,-5 8,0 -8,5" fill="#1b6fff"/><rect x="8" y="-7" width="14" height="14" rx="3" fill="#2d7cff"/></g>`; if(o.kind==='subject')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><ellipse cx="0" cy="0" rx="12" ry="8" fill="#1d2533" opacity=".95"/><ellipse cx="6" cy="-2.8" rx="2.3" ry="2" fill="#f5f7fb"/><ellipse cx="6" cy="2.8" rx="2.3" ry="2" fill="#f5f7fb"/><circle cx="6.8" cy="-2.8" r=".8" fill="#1d2533"/><circle cx="6.8" cy="2.8" r=".8" fill="#1d2533"/></g>`; if(o.kind==='light')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><rect x="-11" y="-7" width="22" height="14" rx="4" fill="#ffbf3a" stroke="#8d6100" stroke-width="1.5"/><circle cx="8" cy="0" r="7" fill="#f6efcf" stroke="#8d6100" stroke-width="1.5"/></g>`; if(o.kind==='accessory')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="-14" y1="0" x2="14" y2="0" stroke="#9aa3ad" stroke-width="4" stroke-linecap="round"/></g>`; if(o.kind==='decor')return o.type==='wall'?`<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="${-(o.width||2)*50*sx/2}" y1="0" x2="${(o.width||2)*50*sx/2}" y2="0" stroke="#b7aa9a" stroke-width="4" stroke-linecap="square"/></g>`:''; return ''}).join('');
+  const objs=(planState?.objects||[]).map(o=>{const x=(o.x||0)*sx,y=(o.y||0)*sy; if(o.kind==='camera')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><polygon points="-8,-5 8,0 -8,5" fill="#1b6fff"/><rect x="8" y="-7" width="14" height="14" rx="3" fill="#2d7cff"/></g>`; if(o.kind==='subject')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><circle cx="0" cy="0" r="9" fill="#1d2533" opacity=".95"/><polygon points="6,0 1.5,-2.8 1.5,2.8" fill="#f5f7fb" stroke="#1d2533" stroke-width="1.1" stroke-linejoin="round"/></g>`; if(o.kind==='light')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><rect x="-11" y="-7" width="22" height="14" rx="4" fill="#ffbf3a" stroke="#8d6100" stroke-width="1.5"/><circle cx="8" cy="0" r="7" fill="#f6efcf" stroke="#8d6100" stroke-width="1.5"/></g>`; if(o.kind==='accessory')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="-14" y1="0" x2="14" y2="0" stroke="#9aa3ad" stroke-width="4" stroke-linecap="round"/></g>`; if(o.kind==='decor')return o.type==='wall'?`<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="${-(o.width||2)*50*sx/2}" y1="0" x2="${(o.width||2)*50*sx/2}" y2="0" stroke="#b7aa9a" stroke-width="4" stroke-linecap="square"/></g>`:''; return ''}).join('');
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${TW}" height="${TH}" viewBox="0 0 ${TW} ${TH}">${bg}${grid.join('')}${objs}</svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }
@@ -1024,7 +1035,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;seed();resetStageViewport();render();renderLibraryList()}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.33',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.35',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
@@ -1051,14 +1062,18 @@ libraryDialog.addEventListener('click',e=>{if(e.target===libraryDialog)closeLibr
 document.getElementById('newFolderBtn').onclick=()=>{const name=prompt('Nom du nouveau dossier :');if(!name?.trim())return;const f={id:uid('folder'),name:name.trim()};library.folders.push(f);persistLibrary();state.folderId=f.id;renderLibraryList();folderSelect.value=f.id};
 document.getElementById('newPlanBtn').onclick=newPlanFlow;
 document.getElementById('saveToLibraryBtn').onclick=()=>savePlanToLibrary({mode:state.planId?'overwrite':'new',name:(planNameInput?.value||state.planName||defaultPlanName()).trim()||defaultPlanName(),folderId:folderSelect.value||state.folderId});
-if(shareProjectBtn)shareProjectBtn.onclick=()=>shareProjectState();
+function toggleExportPopover(force){if(!exportPopover||!exportMenuBtn)return;const open=typeof force==='boolean'?force:exportPopover.hasAttribute('hidden');if(open){exportPopover.removeAttribute('hidden')}else{exportPopover.setAttribute('hidden','')}exportMenuBtn.setAttribute('aria-expanded',String(open));}
+if(shareProjectBtn)shareProjectBtn.onclick=()=>{toggleExportPopover(false);shareProjectState()};
 if(importProjectBtn)importProjectBtn.onclick=()=>importProjectInput?.click();
 if(importProjectInput)importProjectInput.onchange=async()=>{const f=importProjectInput.files?.[0];importProjectInput.value='';await importProjectFile(f)};
+if(exportMenuBtn)exportMenuBtn.onclick=(e)=>{e.stopPropagation();toggleExportPopover()};
+if(exportPopover)exportPopover.onclick=e=>e.stopPropagation();
+document.addEventListener('click',e=>{if(exportPopover && !exportPopover.hasAttribute('hidden') && !e.target.closest('.export-wrap'))toggleExportPopover(false)});
 if(topPlanNameInput)topPlanNameInput.addEventListener('input',()=>{state.planName=(topPlanNameInput.value||'').trim()||defaultPlanName();if(planNameInput&&document.activeElement!==planNameInput)planNameInput.value=state.planName;persistCurrent();updatePlanBadge()});
 if(planNameInput)planNameInput.addEventListener('input',()=>{state.planName=(planNameInput.value||'').trim()||defaultPlanName();if(topPlanNameInput&&document.activeElement!==topPlanNameInput)topPlanNameInput.value=state.planName;persistCurrent();updatePlanBadge()});
 document.getElementById('saveBtn').onclick=saveCurrentPlanFlow;
 document.getElementById('resetBtn').onclick=newPlanFlow;
-function flash(txt){const b=document.getElementById('saveBtn'),old=b.textContent;b.textContent='✓ '+txt;setTimeout(()=>b.textContent=old,1200)}
+function flash(txt){const b=document.getElementById('saveBtn'),lab=b?.querySelector('.tool-label');if(lab){const old=lab.textContent;lab.textContent='✓';b.title=txt;setTimeout(()=>{lab.textContent=old;b.title='Enregistrer le plan'},1200)}else if(b){const old=b.textContent;b.textContent='✓';setTimeout(()=>b.textContent=old,1200)}}
 function inlineSvgStyles(original,clone){
   const props=['fill','stroke','stroke-width','stroke-dasharray','stroke-linecap','stroke-linejoin','opacity','font-family','font-size','font-weight','letter-spacing','paint-order','color'];
   const os=[original,...original.querySelectorAll('*')],cs=[clone,...clone.querySelectorAll('*')];
@@ -1073,7 +1088,7 @@ function exportPng(){
   img.onload=()=>{const c=document.createElement('canvas');c.width=outW;c.height=outH+titleH;const ctx=c.getContext('2d');ctx.fillStyle=getComputedStyle(document.querySelector('.stage-bg')).getPropertyValue('fill')||'#fbfcfe';ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle='#121821';ctx.font='700 38px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(state.planName||defaultPlanName(),c.width/2,titleH/2);ctx.drawImage(img,0,titleH,outW,outH);URL.revokeObjectURL(url);c.toBlob(b=>{if(b)downloadBlob(b,`${safeName(state.planName||defaultPlanName())}_Plan_Feu.png`)},'image/png')};
   img.onerror=()=>{URL.revokeObjectURL(url);alert("L’export PNG n’a pas pu être généré sur ce navigateur.")};img.src=url;
 }
-document.getElementById('exportBtn').onclick=exportPng;
+if(exportBtn)exportBtn.onclick=()=>{toggleExportPopover(false);exportPng()};
 if(toggleSnapBtn)toggleSnapBtn.onclick=()=>{state.snap=Number(state.snap)>0?0:.25;updatePlanBadge();renderCanvas()};
 labelsModeSelect.onchange=()=>{state.labelsMode=labelsModeSelect.value;renderCanvas()};
 toggleBeamsBtn.onclick=()=>{state.beamsVisible=state.beamsVisible===false;updatePlanBadge();renderCanvas()};
