@@ -1,4 +1,4 @@
-const APP_VERSION='V1.26';
+const APP_VERSION='V1.28';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -42,7 +42,6 @@ const shareProjectBtn=document.getElementById('shareProjectBtn');
 const importProjectBtn=document.getElementById('importProjectBtn');
 const importProjectInput=document.getElementById('importProjectInput');
 const stageWrap=document.getElementById('stageWrap');
-const resetViewBtn=document.getElementById('resetViewBtn');
 const zoomReadout=document.getElementById('zoomReadout');
 
 const cameras={
@@ -258,7 +257,6 @@ stage.addEventListener('pointerdown',handleViewportPointerDown,{capture:true});
 stage.addEventListener('pointermove',handleViewportPointerMove,{capture:true});
 stage.addEventListener('pointerup',handleViewportPointerEnd,{capture:true});
 stage.addEventListener('pointercancel',handleViewportPointerEnd,{capture:true});
-if(resetViewBtn)resetViewBtn.addEventListener('click',resetStageViewport);
 let replaceLightId=null;
 let catalogBrand='Amaran';
 let catalogFamily='';
@@ -688,7 +686,8 @@ function renderInspector(){
   html+=`<div class="field"><label>${o.kind==='light'?'Nom personnalisé':'Nom'}</label><input data-k="name" value="${esc(o.name)}"></div>`;
   if(o.kind==='camera'){
     html+=`<div class="field"><label>Caméra / capteur</label><select id="selectedCameraModel">${Object.keys(cameras).map(name=>`<option value="${esc(name)}" ${o.cameraModel===name?'selected':''}>${esc(name)}</option>`).join('')}</select></div>`;
-    html+=`<div class="field slider-field"><div class="slider-head"><label>Focale</label><strong data-slider-out="focal">${Math.round(o.focal)} mm</strong></div><input data-k="focal" type="range" min="12" max="300" step="1" value="${o.focal}"></div>`;
+    const focalPresets=[18,24,28,35,50,85,105,135];
+    html+=`<div class="field"><label>Focale</label><div class="field-inline"><input id="cameraFocalInput" data-k="focal" type="number" min="12" max="300" step="1" value="${Math.round(o.focal)}"><span class="unit">mm</span></div><div class="preset-row">${focalPresets.map(v=>`<button type="button" class="preset-chip ${Math.round(o.focal)===v?'active':''}" data-focal-preset="${v}">${v}</button>`).join('')}</div></div>`;
     html+=`<div class="field slider-field"><div class="slider-head"><label>Hauteur caméra</label><strong data-slider-out="height">${Number(o.height||1.55).toFixed(2)} m</strong></div><input data-k="height" type="range" min="0.2" max="4" step="0.05" value="${o.height}"></div>`;
   }
   if(o.kind==='subject')html+=`<div class="field slider-field"><div class="slider-head"><label>Taille</label><strong data-slider-out="height">${Number(o.height||1.75).toFixed(2)} m</strong></div><input data-k="height" type="range" min="1" max="2.2" step="0.01" value="${o.height}"></div>`;
@@ -729,8 +728,9 @@ function renderInspector(){
   }
   if(o.kind==='accessory'||o.kind==='decor')html+=`<label class="lock-row"><input id="lockSelected" type="checkbox" ${o.locked?'checked':''}> <span>Verrouiller la position</span></label>`;
   inspectorFields.innerHTML=html;
-  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;const key=inp.dataset.k;let val=inp.value;if(['height','width','zHeight','elevation','intensity','beam','focal','modifierSize','cct','hue','saturation'].includes(key))val=Number(val);if(inp.dataset.convert==='cm')val=val/100;obj[key]=val;const out=inp.parentElement?.querySelector(`[data-slider-out="${key}"]`);if(out){const num=Number(inp.value);const shown=inp.dataset.convert==='cm'?Math.round(num):(key==='cct'||key==='beam'||key==='focal'?Math.round(num):num);out.textContent=key==='cct'?`${shown} K`:key==='beam'?`${shown}°`:key==='focal'?`${shown} mm`:['height','width','zHeight','elevation'].includes(key)?`${num.toFixed(key==='width'?1:2)} m`:inp.dataset.convert==='cm'?`${shown} cm`:`${Math.round(num)} %`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
+  inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;const key=inp.dataset.k;let val=inp.value;if(['height','width','zHeight','elevation','intensity','beam','focal','modifierSize','cct','hue','saturation'].includes(key))val=Number(val);if(inp.dataset.convert==='cm')val=val/100;if(key==='focal')val=clamp(Number.isFinite(val)?val:Number(inp.value)||obj.focal||50,12,300);obj[key]=val;const out=inp.parentElement?.querySelector(`[data-slider-out="${key}"]`)||inp.closest('.field')?.querySelector(`[data-slider-out="${key}"]`);if(out){const num=Number(inp.value);const shown=inp.dataset.convert==='cm'?Math.round(num):(key==='cct'||key==='beam'||key==='focal'?Math.round(num):num);out.textContent=key==='cct'?`${shown} K`:key==='beam'?`${shown}°`:key==='focal'?`${shown} mm`:['height','width','zHeight','elevation'].includes(key)?`${num.toFixed(key==='width'?1:2)} m`:inp.dataset.convert==='cm'?`${shown} cm`:`${Math.round(num)} %`}if(key==='focal'){const numVal=Math.round(obj.focal||50);const focalInput=document.getElementById('cameraFocalInput');if(focalInput&&document.activeElement!==focalInput)focalInput.value=String(numVal);inspectorFields.querySelectorAll('[data-focal-preset]').forEach(btn=>btn.classList.toggle('active',Number(btn.dataset.focalPreset)===numVal))}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
   const camModel=document.getElementById('selectedCameraModel');if(camModel)camModel.onchange=()=>{const obj=selected();if(!obj||obj.kind!=='camera')return;obj.cameraModel=camModel.value;state.activePreviewCamera=obj.id;renderCanvas()};
+  inspectorFields.querySelectorAll('[data-focal-preset]').forEach(btn=>btn.onclick=()=>{const obj=selected();if(!obj||obj.kind!=='camera')return;obj.focal=clamp(Number(btn.dataset.focalPreset)||50,12,300);state.activePreviewCamera=obj.id;renderInspector();renderCanvas()});
   const lightModel=document.getElementById('selectedLightModel');if(lightModel)lightModel.onchange=()=>{const obj=selected();if(!obj||obj.kind!=='light')return;const preset=lightCatalog[Number(lightModel.value)];if(preset)addLightFromPreset(preset,obj.id)};
   inspectorFields.querySelectorAll('[data-choice] button').forEach(btn=>btn.onclick=()=>{const obj=selected();if(!obj)return;const key=btn.parentElement.dataset.choice;obj[key]=btn.dataset.value;if(key==='modifier'){if(obj.modifier==='softbox'&&!obj.modifierSize)obj.modifierSize=.9;if(obj.modifier?.startsWith('umbrella'))obj.modifierSize=Number(obj.modifierSize)||1.05}render()});
   const lock=document.getElementById('lockSelected');if(lock)lock.onchange=()=>{o.locked=lock.checked;render()};
@@ -965,7 +965,7 @@ function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;seed();resetStageViewport();render();renderLibraryList()}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.26',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.28',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
@@ -1018,6 +1018,7 @@ labelsModeSelect.onchange=()=>{state.labelsMode=labelsModeSelect.value;renderCan
 toggleBeamsBtn.onclick=()=>{state.beamsVisible=state.beamsVisible===false;updatePlanBadge();renderCanvas()};
 if(gridOpacityRange){gridOpacityRange.oninput=()=>{state.gridOpacity=clamp(Number(gridOpacityRange.value)/100,0,1);updateGridOpacity();scheduleAutosave()};gridOpacityRange.onchange=()=>persistCurrent()}
 if(planLengthRange){planLengthRange.oninput=()=>{setPlanLength(Number(planLengthRange.value),{keepViewport:true});updatePlanBadge()};planLengthRange.onchange=()=>persistCurrent()}
+if(zoomReadout)zoomReadout.addEventListener('click',()=>{resetStageViewport();persistCurrent()})
 
 function normalizeSceneObject(o){
   if(o.kind==='light')normalizeLightObject(o);

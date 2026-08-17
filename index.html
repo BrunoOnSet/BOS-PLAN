@@ -8,8 +8,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>BOS · Plan Feu</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.26" />
-  <link rel="stylesheet" href="styles.css?v=1.26" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.28" />
+  <link rel="stylesheet" href="styles.css?v=1.28" />
 </head>
 <body>
   <div class="app-shell">
@@ -62,7 +62,7 @@
             </div>
           </div>
           <div class="toolbar-note">
-            <strong id="appVersionBadge">V1.26</strong>
+            <strong id="appVersionBadge">V1.28</strong>
             <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
           </div>
         </div>
@@ -88,8 +88,7 @@
           </div>
           <div class="stage-wrap" id="stageWrap">
             <div class="stage-view-controls" aria-label="Navigation du plan">
-              <button id="resetViewBtn" type="button" class="stage-view-btn" title="Afficher tout le plan">Recentrer</button>
-              <span id="zoomReadout" class="stage-zoom-readout">100 %</span>
+              <button id="zoomReadout" type="button" class="stage-zoom-readout" title="Revenir à 100 %">100 %</button>
             </div>
             <svg id="stage" viewBox="0 0 1000 620" aria-label="Plan feu vue du dessus">
               <defs>
@@ -106,8 +105,8 @@
               <g id="beamsLayer"></g>
               <g id="objectsLayer"></g>
             </svg>
-            <div class="scale-note"><strong>1 grand carreau = 1 m</strong><span>petit carreau = 25 cm</span></div>
           </div>
+          <div class="scale-note scale-note-below"><strong>1 grand carreau = 1 m</strong><span>petit carreau = 25 cm</span></div>
         </div>
 
         <aside class="inspector card" id="inspector">
@@ -249,6 +248,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.26"></script>
+  <script src="app.js?v=1.28"></script>
 </body>
 </html>
