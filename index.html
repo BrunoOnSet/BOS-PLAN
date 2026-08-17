@@ -8,8 +8,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>BOS · Plan Feu</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.19" />
-  <link rel="stylesheet" href="styles.css?v=1.19" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.23" />
+  <link rel="stylesheet" href="styles.css?v=1.23" />
 </head>
 <body>
   <div class="app-shell">
@@ -33,12 +33,11 @@
       <section class="toolbar card">
         <div class="tool-group grow">
           <label>Éléments du plan</label>
-          <button class="add-main" id="openAddBtn"><span class="plus">+</span> Ajouter un élément</button>
+          <button class="add-main" id="openAddBtn"><span class="plus">+</span> Ajouter</button>
         </div>
         <div class="plan-tools">
-          <div class="beam-global-control" title="Aimante les déplacements à la grille de 25 cm. La grille visuelle reste à 25 cm / 1 m.">
-            <span>Aimant</span>
-            <button id="toggleSnapBtn" class="beam-toggle active" type="button" aria-pressed="true">Accroche ON</button>
+          <div class="beam-global-control beam-toggle-only" title="Aimante les déplacements à la grille de 25 cm. La grille visuelle reste à 25 cm / 1 m.">
+            <button id="toggleSnapBtn" class="beam-toggle active" type="button" aria-pressed="true">Aimant ON</button>
           </div>
           <label>Infos
             <select id="labelsModeSelect">
@@ -53,13 +52,12 @@
             <div class="grid-opacity-head"><span>Opacité grille</span><output id="gridOpacityValue">50 %</output></div>
             <input id="gridOpacityRange" type="range" min="10" max="100" step="5" value="50" aria-label="Opacité de la grille" />
           </div>
-          <div class="beam-global-control">
-            <span>Faisceau</span>
-            <button id="toggleBeamsBtn" class="beam-toggle active" type="button" aria-pressed="true">Faisceaux ON</button>
+          <div class="beam-global-control beam-toggle-only">
+            <button id="toggleBeamsBtn" class="beam-toggle active" type="button" aria-pressed="true">Faisceau ON</button>
           </div>
         </div>
         <div class="toolbar-note">
-          <strong id="appVersionBadge">V1.19</strong>
+          <strong id="appVersionBadge">V1.23</strong>
           <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
         </div>
       </section>
@@ -242,6 +240,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.19"></script>
+  <script src="app.js?v=1.23"></script>
 </body>
 </html>

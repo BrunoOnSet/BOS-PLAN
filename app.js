@@ -274,9 +274,9 @@ function updateGridOpacity(){
   // À 100 %, la grille devient volontairement très lisible pour un usage de plan technique.
   const dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
   const t=(v-.1)/.9;
-  const smallA=.07+t*.48, largeA=.13+t*.67;
-  const smallStroke=dark?`rgba(184,198,218,${smallA.toFixed(3)})`:`rgba(45,62,86,${smallA.toFixed(3)})`;
-  const largeStroke=dark?`rgba(216,226,240,${largeA.toFixed(3)})`:`rgba(27,44,68,${largeA.toFixed(3)})`;
+  const smallA=.12+t*.55, largeA=.20+t*.70;
+  const smallStroke=dark?`rgba(102,116,132,${smallA.toFixed(3)})`:`rgba(68,84,104,${smallA.toFixed(3)})`;
+  const largeStroke=dark?`rgba(74,88,104,${largeA.toFixed(3)})`:`rgba(44,58,78,${largeA.toFixed(3)})`;
   stage.querySelectorAll('.grid-small').forEach(n=>{n.style.opacity='1';n.setAttribute('opacity','1');n.style.stroke=smallStroke;n.setAttribute('stroke',smallStroke)});
   stage.querySelectorAll('.grid-large').forEach(n=>{n.style.opacity='1';n.setAttribute('opacity','1');n.style.stroke=largeStroke;n.setAttribute('stroke',largeStroke)});
   if(gridOpacityRange)gridOpacityRange.value=String(Math.round(v*100));
@@ -409,27 +409,34 @@ function supportsSoftbox(o){
   const no=['tube','pixel-bar','strip','bulb','mat','pocket-round'];
   return o.kind==='light'&&!no.includes(o.form);
 }
+function cameraModelShortName(name=''){
+  return String(name).replace(/^Sony\s+/i,'').trim()||String(name||'');
+}
 function addLightModifier(g,o){
   if(!o.modifier||o.modifier==='none')return;
+  const size=Math.max(.3,Number(o.modifierSize)||.9),px=size*SCALE;
   if(o.modifier==='softbox'){
     const linear=['ray','panel','panel-wide','nova','nova-narrow'].includes(o.form);
     if(linear){
-      g.appendChild(svgEl('rect',{x:25,y:-25,width:30,height:50,rx:5,class:'softbox-shape'}));
-      g.appendChild(svgEl('line',{x1:20,y1:-14,x2:25,y2:-20,class:'softbox-strut'}));
-      g.appendChild(svgEl('line',{x1:20,y1:14,x2:25,y2:20,class:'softbox-strut'}));
+      const w=Math.max(34,px*.32),h=Math.max(52,px*.9),x=22;
+      g.appendChild(svgEl('rect',{x,y:-h/2,width:w,height:h,rx:Math.min(10,h*.1),class:'softbox-shape'}));
+      g.appendChild(svgEl('line',{x1:18,y1:-h*.24,x2:x,y2:-h*.34,class:'softbox-strut'}));
+      g.appendChild(svgEl('line',{x1:18,y1:h*.24,x2:x,y2:h*.34,class:'softbox-strut'}));
     } else {
-      g.appendChild(svgEl('polygon',{points:'18,-13 36,-28 66,-28 66,28 36,28 18,13',class:'softbox-shape'}));
-      g.appendChild(svgEl('line',{x1:18,y1:-10,x2:36,y2:-24,class:'softbox-strut'}));
-      g.appendChild(svgEl('line',{x1:18,y1:10,x2:36,y2:24,class:'softbox-strut'}));
+      const face=Math.max(42,px*.75),neck=18,half=face/2,x0=16,x1=x0+neck,x2=x1+face;
+      g.appendChild(svgEl('polygon',{points:`${x0},${-half*.42} ${x1},${-half} ${x2},${-half} ${x2},${half} ${x1},${half} ${x0},${half*.42}`,class:'softbox-shape'}));
+      g.appendChild(svgEl('line',{x1:x0,y1:-half*.34,x2:x1,y2:-half*.84,class:'softbox-strut'}));
+      g.appendChild(svgEl('line',{x1:x0,y1:half*.34,x2:x1,y2:half*.84,class:'softbox-strut'}));
     }
     return;
   }
   if(o.modifier==='umbrella-reflect'||o.modifier==='umbrella-diffusion'){
     const cls=o.modifier==='umbrella-reflect'?'umbrella-reflect-shape':'umbrella-diffusion-shape';
-    g.appendChild(svgEl('line',{x1:18,y1:0,x2:43,y2:0,class:'umbrella-stem'}));
-    g.appendChild(svgEl('path',{d:'M 43 -34 Q 73 0 43 34',class:cls}));
-    g.appendChild(svgEl('line',{x1:43,y1:-34,x2:43,y2:34,class:'umbrella-rim'}));
-    const t=svgEl('text',{x:55,y:4,class:'umbrella-code','text-anchor':'middle'});t.textContent=o.modifier==='umbrella-reflect'?'R':'D';g.appendChild(t);
+    const stem=24,depth=Math.max(18,px*.28),half=Math.max(22,px*.42),x0=18,x1=x0+stem;
+    g.appendChild(svgEl('line',{x1:x0,y1:0,x2:x1,y2:0,class:'umbrella-stem'}));
+    g.appendChild(svgEl('path',{d:`M ${x1} ${-half} Q ${x1+depth} 0 ${x1} ${half}`,class:cls}));
+    g.appendChild(svgEl('line',{x1:x1,y1:-half,x2:x1,y2:half,class:'umbrella-rim'}));
+    const t=svgEl('text',{x:x1+depth*.45,y:4,class:'umbrella-code','text-anchor':'middle'});t.textContent=o.modifier==='umbrella-reflect'?'R':'D';g.appendChild(t);
   }
 }
 function addFixtureSymbol(g,o){
@@ -567,6 +574,7 @@ function drawObject(o){
     const label=svgEl('g',{transform:`rotate(${-o.rot}) translate(${lx} ${ly})`}),t=svgEl('text',{class:'object-label','text-anchor':anchor});t.textContent=o.name;label.appendChild(t);
     if(objectInfoMode==='full'){
       if(o.kind==='light'){const st=svgEl('text',{class:'object-sub','text-anchor':anchor,y:17});const modLabel=o.modifier==='softbox'?'Softbox':o.modifier==='umbrella-reflect'?'Parapluie réflexion':o.modifier==='umbrella-diffusion'?'Parapluie diffusion':'';const base=`${o.intensity}% · ${lightColorText(o)}${modLabel?' · '+modLabel:''}`;st.textContent=state.labelsMode==='lightcrew'?`${base} · H ${Number(o.height||2).toFixed(1)} m`:base;label.appendChild(st)}
+      else if(o.kind==='camera'){const st=svgEl('text',{class:'object-sub','text-anchor':anchor,y:17});st.textContent=`${cameraModelShortName(o.cameraModel)} · ${Math.round(o.focal||50)} mm · H ${Number(o.height||1.55).toFixed(2)} m`;label.appendChild(st)}
       else if(o.kind==='accessory'||o.kind==='decor'){const st=svgEl('text',{class:'object-sub','text-anchor':anchor,y:17});st.textContent=`${(o.width||0).toFixed(1)} × ${(o.height||0).toFixed(1)} m${o.locked?' · verrouillé':''}`;label.appendChild(st)}
     }
     g.appendChild(label);
@@ -709,7 +717,25 @@ function cameraFovs(cam){const {sensor,focal}=cameraSettings(cam),hfov=2*Math.at
 function projectWorld(cam,x,y,z,W=1600,H=900){
   const cs=cameraSpace(cam,{x,y});if(cs.forward<=.03)return null;const {hfov,vfov}=cameraFovs(cam),halfW=cs.forward*Math.tan(hfov/2),halfH=cs.forward*Math.tan(vfov/2);return{x:W*(.5+cs.side/(2*halfW)),y:H*(.5-(z-(cam.height||1.55))/(2*halfH)),forward:cs.forward,side:cs.side};
 }
-function shotLabel(subjectPixelHeight,monitorH=900){const r=subjectPixelHeight/monitorH;if(r<.42)return'Plan pied large';if(r<.62)return'Plan pied';if(r<.86)return'Plan américain / taille';if(r<1.18)return'Plan poitrine';if(r<1.65)return'Gros plan';return'Très gros plan'}
+function shotLabel(item,monitorH=900){
+  if(!item||!item.bbox)return null;
+  const top=Number(item.bbox.y0),bottom=Number(item.bbox.y1),fullH=Math.abs(bottom-top);
+  if(!Number.isFinite(top)||!Number.isFinite(bottom)||fullH<1)return null;
+  // Si le haut du sujet est fortement hors cadre, le découpage ne correspond plus à une nomenclature fiable.
+  if(top < -monitorH*.05)return null;
+  // Le bas du cadre est converti en hauteur anatomique (0 = pieds, 1 = sommet du crâne).
+  const cutFromGround=bottom<=monitorH?0:clamp((bottom-monitorH)/fullH,0,1);
+  if(cutFromGround===0){
+    const r=fullH/monitorH;
+    return r<.52?'Plan pied large':'Plan pied';
+  }
+  // Catégories fondées sur le point de coupe réel du corps, et non sur sa hauteur totale projetée.
+  if(cutFromGround<.43)return'Plan américain';       // coupe cuisses / au-dessus du genou
+  if(cutFromGround<.60)return'Plan taille';          // bassin / taille
+  if(cutFromGround<.76)return'Plan poitrine';        // buste / poitrine
+  if(cutFromGround<.90)return'Gros plan';            // épaules / base du cou
+  return'Très gros plan';                            // visage
+}
 function objectAxisEndpoints(o,widthMeters){const a=rad(o.rot||0),dx=Math.cos(a)*widthMeters*SCALE/2,dy=Math.sin(a)*widthMeters*SCALE/2;return[{x:o.x-dx,y:o.y-dy},{x:o.x+dx,y:o.y+dy}]}
 function svgNode(tag,attrs={},text=''){const el=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))el.setAttribute(k,v);if(text)el.textContent=text;return el}
 function verticalPlanePoints(cam,o,width,z0,z1){
@@ -781,8 +807,8 @@ function previewItemForObject(cam,o){
     const cls=o.type==='diffusion'?'preview-diffusion':o.type==='reflector'?'preview-reflector':o.type==='borniol'?'preview-borniol':'preview-negative';return projectedVerticalPlane(cam,o,o.width||1.2,o.elevation??.35,(o.elevation??.35)+(o.zHeight||o.height||1.5),cls,o.short||'');
   }
   if(o.kind==='light'){
-    const a=rad(o.rot||0),mod=o.modifier||'none',soft=mod==='softbox',umbrella=mod==='umbrella-reflect'||mod==='umbrella-diffusion',shift=(soft||umbrella)?.35:0,x=o.x+Math.cos(a)*shift*SCALE,y=o.y+Math.sin(a)*shift*SCALE;let w=.38,h=.30,label=o.short||'LIGHT',cls='preview-light';
-    if(soft){w=Number(o.modifierSize)||.9;h=w;label='SOFTBOX';cls='preview-softbox'}else if(umbrella){w=Number(o.modifierSize)||1.05;h=w;label=mod==='umbrella-reflect'?'PARA R':'PARA D';cls=mod==='umbrella-reflect'?'preview-umbrella-reflect':'preview-umbrella-diffusion'}else if(['tube','pixel-bar','strip'].includes(o.form)){w=(o.length||60)/55*.65;h=.10}else if(['panel','panel-wide','nova','nova-narrow','mat'].includes(o.form)){w=.75;h=.48}else if(o.form==='halo'){w=.48;h=.48;cls='preview-halo'};
+    const a=rad(o.rot||0),mod=o.modifier||'none',soft=mod==='softbox',umbrella=mod==='umbrella-reflect'||mod==='umbrella-diffusion',modSize=Math.max(.3,Number(o.modifierSize)||(soft?.9:1.05)),shift=soft?Math.max(.25,modSize*.28):umbrella?Math.max(.22,modSize*.22):0,x=o.x+Math.cos(a)*shift*SCALE,y=o.y+Math.sin(a)*shift*SCALE;let w=.38,h=.30,label=o.short||'LIGHT',cls='preview-light';
+    if(soft){w=Math.max(.45,modSize*.78);h=Math.max(.45,modSize*.78);label='SOFTBOX';cls='preview-softbox'}else if(umbrella){w=Math.max(.42,modSize*.72);h=Math.max(.42,modSize*.72);label=mod==='umbrella-reflect'?'PARA R':'PARA D';cls=mod==='umbrella-reflect'?'preview-umbrella-reflect':'preview-umbrella-diffusion'}else if(['tube','pixel-bar','strip'].includes(o.form)){w=(o.length||60)/55*.65;h=.10}else if(['panel','panel-wide','nova','nova-narrow','mat'].includes(o.form)){w=.75;h=.48}else if(o.form==='halo'){w=.48;h=.48;cls='preview-halo'};
     return projectedBillboard(cam,x,y,o.height||2,w,h,cls,label);
   }
   if(o.kind==='camera')return projectedBillboard(cam,o.x,o.y,o.height||1.55,.48,.34,'preview-other-camera','CAM');
@@ -794,7 +820,7 @@ function makeMonitorCard(cam,compact=false){
   const shell=document.createElement('div');shell.className='monitor-shell';const monitor=document.createElement('div');monitor.className='monitor';const svg=svgNode('svg',{viewBox:'0 0 1600 900',preserveAspectRatio:'xMidYMid slice',class:'preview-svg'});svg.appendChild(svgNode('rect',{x:0,y:0,width:1600,height:900,class:'preview-background'}));
   const items=[];let visibleSubjects=[],technical=[],visibleWindows=[];state.objects.forEach(o=>{const item=previewItemForObject(cam,o);if(!item)return;item.object=o;items.push(item);if(bboxTouchesFrame(item.bbox)){if(o.kind==='subject')visibleSubjects.push(item);if(['light','accessory','camera'].includes(o.kind))technical.push(o);if(o.kind==='decor'&&o.type==='window')visibleWindows.push(o)}});items.sort((a,b)=>b.depth-a.depth).forEach(item=>svg.appendChild(item.node));
   const guides=svgNode('g',{class:'preview-guides'});guides.appendChild(svgNode('rect',{x:80,y:45,width:1440,height:810,class:'preview-safe'}));[1600/3,3200/3].forEach(x=>guides.appendChild(svgNode('line',{x1:x,y1:0,x2:x,y2:900,class:'preview-third'})));[300,600].forEach(y=>guides.appendChild(svgNode('line',{x1:0,y1:y,x2:1600,y2:y,class:'preview-third'})));svg.appendChild(guides);monitor.appendChild(svg);
-  const label=document.createElement('div');label.className='preview-label';if(visibleSubjects.length){const main=visibleSubjects.sort((a,b)=>Math.abs((a.bbox.x0+a.bbox.x1)/2-800)-Math.abs((b.bbox.x0+b.bbox.x1)/2-800))[0];label.textContent=`${shotLabel(main.subjectHeight||0)} · ${visibleSubjects.length} sujet${visibleSubjects.length>1?'s':''} visible${visibleSubjects.length>1?'s':''}`}else label.textContent='Aucun sujet dans le cadre';monitor.appendChild(label);
+  const label=document.createElement('div');label.className='preview-label';if(visibleSubjects.length){const main=visibleSubjects.sort((a,b)=>Math.abs((a.bbox.x0+a.bbox.x1)/2-800)-Math.abs((b.bbox.x0+b.bbox.x1)/2-800))[0];const framing=shotLabel(main);label.textContent=`${framing?framing+' · ':''}${visibleSubjects.length} sujet${visibleSubjects.length>1?'s':''} visible${visibleSubjects.length>1?'s':''}`}else label.textContent='Aucun sujet dans le cadre';monitor.appendChild(label);
   if(visibleWindows.length){const info=document.createElement('div');info.className='preview-scene-info';info.textContent=`Fenêtre${visibleWindows.length>1?'s':''} visible${visibleWindows.length>1?'s':''} : ${visibleWindows.map(o=>o.name).slice(0,2).join(' · ')}${visibleWindows.length>2?` +${visibleWindows.length-2}`:''}`;monitor.appendChild(info)}
   if(technical.length){const alert=document.createElement('div');alert.className='preview-warning';const names=[...new Set(technical.map(o=>o.kind==='light'?(o.modifier==='softbox'?`${o.short||o.name} + softbox`:o.modifier==='umbrella-reflect'?`${o.short||o.name} + parapluie réflexion`:o.modifier==='umbrella-diffusion'?`${o.short||o.name} + parapluie diffusion`:(o.short||o.name)):o.name))];alert.textContent=`⚠ Dans le champ : ${names.slice(0,3).join(' · ')}${names.length>3?` +${names.length-3}`:''}`;monitor.appendChild(alert)}
   shell.appendChild(monitor);card.appendChild(shell);return card;
@@ -878,7 +904,7 @@ function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();resetStageViewport();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;seed();render();renderLibraryList()}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.19',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.23',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
