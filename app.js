@@ -294,6 +294,15 @@ function presetForObject(o){
   if(!o || o.kind!=='light')return null;
   return lightCatalog.find(p=>p.name===o.name)||lightCatalog.find(p=>p.short===o.short)||null;
 }
+function lightCapability(o){
+  if(!o||o.kind!=='light')return 'daylight';
+  const txt=`${o.name||''} ${o.family||''} ${o.short||''} ${o.form||''}`.toLowerCase();
+  // Couleur complète : modèles explicitement "c" ou familles RGB/pixel/couleur.
+  if(/\b(?:[a-z]*\d+[a-z-]*c|b7c)\b/.test(txt) || /\b(?:cob couleur|nova|infinibar|infinimat|ray|pano|pixel|tubes|tube|go|mt pro|mc pro|\bmc\b|ace 25c)\b/.test(txt))return 'color';
+  // Bi-color / CCT variable : la plupart des modèles en "x" et la gamme Halo actuelle.
+  if(/\b[a-z]*\d+[a-z-]*x\b/.test(txt) || /\bhalo\b/.test(txt))return 'bicolor';
+  return 'daylight';
+}
 function normalizeLightObject(o){
   if(o.kind!=='light')return o;
   const p=presetForObject(o);
@@ -307,7 +316,9 @@ function normalizeLightObject(o){
   o.modifier=o.modifier||'none';
   if(o.beamVisible===undefined)o.beamVisible=true;
   if(o.modifierSize===undefined)o.modifierSize=o.modifier==='softbox'?.9:(o.modifier?.startsWith('umbrella')?1.05:.9);
-  if(!['cct','hsi'].includes(o.colorMode))o.colorMode='cct';
+  const capability=lightCapability(o);
+  if(capability!=='color')o.colorMode='cct';
+  else if(!['cct','hsi'].includes(o.colorMode))o.colorMode='cct';
   o.cct=clamp(Number(o.cct)||5600,2000,10000);
   o.hue=((Number(o.hue)||0)%360+360)%360;
   o.saturation=clamp(Number(o.saturation ?? 100),0,100);
@@ -371,12 +382,25 @@ function displayBeamAngle(o){
   // très ouvertes sont volontairement plafonnées afin de garder le plan lisible.
   if(o?.form==='nova-narrow')return raw;
   if(['mat','panel','panel-wide','nova'].includes(o?.form))return Math.min(raw,68);
-  if(['strip','tube','pixel-bar'].includes(o?.form))return Math.min(raw,60);
+  if(o?.form==='strip')return Math.min(raw,120);
+  if(['tube','pixel-bar'].includes(o?.form))return Math.min(raw,90);
   return raw;
 }
+function fixtureEmitterBase(o){
+  if(['tube','pixel-bar','strip'].includes(o?.form)){
+    const L=clamp(Number(o.length)||62,28,90);
+    return {type:'line',span:Math.max(22,L*0.92),len:270};
+  }
+  if(['mat','panel','panel-wide','nova','nova-narrow'].includes(o?.form)){
+    const aspect=o.aspect||1.5,w=clamp(38*aspect,38,78);
+    return {type:'surface',span:Math.max(22,w-4),len:255};
+  }
+  return {type:'point',span:0,len:310};
+}
 function drawLightBeam(o){
-  const beam=displayBeamAngle(o),isArea=['mat','panel','panel-wide','nova','nova-narrow'].includes(o.form),len=isArea?255:310,half=Math.tan(rad(beam/2))*len,c=lightColor(o,.13),beamRot=o.rot+fixtureBeamOffset(o);
-  beamsLayer.appendChild(svgEl('polygon',{points:`0,0 ${len},${-half} ${len},${half}`,class:'beam',style:`fill:${c.fill};stroke:${c.stroke}`,transform:`translate(${o.x} ${o.y}) rotate(${beamRot})`}));
+  const beam=displayBeamAngle(o),base=fixtureEmitterBase(o),len=base.len,half=Math.tan(rad(beam/2))*len,c=lightColor(o,.13),beamRot=o.rot+fixtureBeamOffset(o);
+  const points=base.type==='point'?`0,0 ${len},${-half} ${len},${half}`:`0,${-(base.span/2)} ${len},${-half} ${len},${half} 0,${base.span/2}`;
+  beamsLayer.appendChild(svgEl('polygon',{points,class:'beam',style:`fill:${c.fill};stroke:${c.stroke}`,transform:`translate(${o.x} ${o.y}) rotate(${beamRot})`}));
 }
 
 function supportsSoftbox(o){
@@ -541,22 +565,20 @@ if(toggleInspectorBtn)toggleInspectorBtn.addEventListener('click',()=>{inspector
 updateInspectorCollapse();
 
 function selected(){return state.objects.find(o=>o.id===state.selected)}
-function kindLabel(o){return o.kind==='camera'?'Caméra':o.kind==='subject'?'Personnage':o.kind==='light'?`${o.brand||''} · ${o.family||'Projecteur'}`:o.kind==='accessory'?'Accessoire':'Décor'}
+function kindLabel(o){return o.kind==='camera'?(o.name||'Caméra'):o.kind==='subject'?(o.name||'Personnage'):o.kind==='light'?(o.name||'Projecteur'):o.kind==='accessory'?(o.name||'Accessoire'):(o.name||'Décor')}
 function toggleButtons(key,current,options){return `<div class="inspector-choice" data-choice="${key}">${options.map(([value,label])=>`<button data-value="${esc(value)}" class="${current===value?'active':''}">${esc(label)}</button>`).join('')}</div>`}
 function renderInspector(){
   const o=selected();if(!o){inspectorEmpty.classList.remove('hidden');inspectorFields.classList.add('hidden');selectionHint.textContent='Sélectionne un élément';return}
   inspectorEmpty.classList.add('hidden');inspectorFields.classList.remove('hidden');selectionHint.textContent=kindLabel(o);
   if(o.kind==='camera')normalizeCameraObject(o);
-  let html=`<div class="field"><label>Nom</label><input data-k="name" value="${esc(o.name)}"></div>`;
-  if(o.kind==='light')html+=`<div class="fixture-summary"><span class="fixture-brand">${esc(o.brand||'')}</span><strong>${esc(o.name)}</strong><small>${esc(o.family||'')}</small></div>`;
+  let html=`<div class="field"><label>${o.kind==='light'?'Nom personnalisé':'Nom'}</label><input data-k="name" value="${esc(o.name)}"></div>`;
   if(o.kind==='camera'){
     html+=`<div class="field"><label>Caméra / capteur</label><select id="selectedCameraModel">${Object.keys(cameras).map(name=>`<option value="${esc(name)}" ${o.cameraModel===name?'selected':''}>${esc(name)}</option>`).join('')}</select></div>`;
     html+=`<div class="field-grid"><div class="field"><label>Focale</label><div class="field-inline"><input data-k="focal" type="number" min="12" max="300" step="1" value="${o.focal}"><span class="unit">mm</span></div></div><div class="field"><label>Hauteur caméra</label><div class="field-inline"><input data-k="height" type="number" min="0.2" max="4" step="0.05" value="${o.height}"><span class="unit">m</span></div></div></div>`;
   }
-  html+=`<div class="direct-edit-note">Position et orientation : règle-les directement sur le plan du dessus.</div>`;
   html+=`<div class="field-grid">`;
   if(o.kind==='subject')html+=`<div class="field"><label>Taille</label><div class="field-inline"><input data-k="height" type="number" min="1" max="2.2" step="0.01" value="${o.height}"><span class="unit">m</span></div></div>`;
-  else if(o.kind==='light')html+=`<div class="field"><label>Hauteur source</label><div class="field-inline"><input data-k="height" type="number" min="0" max="5" step="0.1" value="${o.height}"><span class="unit">m</span></div></div>`;
+  else if(o.kind==='light')html+='';
   else if(o.kind==='accessory'||o.kind==='decor')html+=`<div class="field"><label>Largeur</label><div class="field-inline"><input data-k="width" type="number" min="0.1" max="20" step="0.1" value="${o.width}"><span class="unit">m</span></div></div>`;
   else if(o.kind!=='camera')html+=`<div class="field"><label>Distance sujet</label><div class="field-inline"><input disabled value="${nearestSubjectDistance(o).toFixed(2)}"><span class="unit">m</span></div></div>`;
   html+='</div>';
@@ -571,12 +593,18 @@ function renderInspector(){
   if(o.kind==='light'){
     html+=`<div class="field"><label>Accessoire lumière</label>${toggleButtons('modifier',o.modifier||'none',supportsSoftbox(o)?[['none','Nu'],['softbox','Softbox'],['umbrella-reflect','Parapluie réflexion'],['umbrella-diffusion','Parapluie diffusion']]:[['none','Nu']])}</div>`;
     if(o.modifier&&o.modifier!=='none')html+=`<div class="field"><label>${o.modifier.startsWith('umbrella')?'Diamètre parapluie':'Taille accessoire'}</label><div class="field-inline"><input data-k="modifierSize" type="number" min="0.3" max="3" step="0.05" value="${Number(o.modifierSize||.9).toFixed(2)}"><span class="unit">m</span></div></div>`;
-    html+=`<label class="lock-row"><input id="beamVisibleSelected" type="checkbox" ${o.beamVisible!==false?'checked':''}> <span>Afficher le faisceau de ce projecteur</span></label>`;
+    const capability=lightCapability(o);
     html+=`<div class="field"><label>Intensité</label><div class="field-inline"><input data-k="intensity" type="range" min="0" max="100" value="${o.intensity}"><span class="unit">${o.intensity}%</span></div></div>`;
-    html+=`<div class="field"><label>Mode couleur</label>${toggleButtons('colorMode',o.colorMode||'cct',[['cct','Température'],['hsi','HSI']])}</div>`;
-    if((o.colorMode||'cct')==='hsi'){html+=`<div class="field-grid"><div class="field"><label>Hue</label><div class="field-inline"><input data-k="hue" type="number" min="0" max="360" step="1" value="${Math.round(o.hue||0)}"><span class="unit">°</span></div></div><div class="field"><label>Saturation</label><div class="field-inline"><input data-k="saturation" type="range" min="0" max="100" step="1" value="${Math.round(o.saturation??100)}"><span class="unit">${Math.round(o.saturation??100)}%</span></div></div></div>`}else{html+=`<div class="field"><label>Température de couleur</label><div class="field-inline"><input data-k="cct" type="number" min="2000" max="10000" step="50" value="${Math.round(o.cct||5600)}"><span class="unit">K</span></div></div>`}
+    if(capability==='color'){
+      html+=`<div class="field"><label>Mode couleur</label>${toggleButtons('colorMode',o.colorMode||'cct',[['cct','Température'],['hsi','HSI']])}</div>`;
+      if((o.colorMode||'cct')==='hsi')html+=`<div class="field-grid"><div class="field"><label>Hue</label><div class="field-inline"><input data-k="hue" type="number" min="0" max="360" step="1" value="${Math.round(o.hue||0)}"><span class="unit">°</span></div></div><div class="field"><label>Saturation</label><div class="field-inline"><input data-k="saturation" type="range" min="0" max="100" step="1" value="${Math.round(o.saturation??100)}"><span class="unit">${Math.round(o.saturation??100)}%</span></div></div></div>`;
+      else html+=`<div class="field"><label>Température de couleur</label><div class="field-inline"><input data-k="cct" type="number" min="2000" max="10000" step="50" value="${Math.round(o.cct||5600)}"><span class="unit">K</span></div></div>`;
+    } else if(capability==='bicolor') {
+      html+=`<div class="field"><label>Température de couleur</label><div class="field-inline"><input data-k="cct" type="number" min="2000" max="10000" step="50" value="${Math.round(o.cct||5600)}"><span class="unit">K</span></div></div>`;
+    } else {
+      html+=`<div class="field"><label>Température fixe</label><div class="field-inline"><input disabled value="${Math.round(o.cct||5600)}"><span class="unit">K</span></div></div>`;
+    }
     html+=`<div class="field"><label>Ouverture du cône (schématique)</label><div class="field-inline"><input data-k="beam" type="number" min="4" max="179" value="${o.beam}"><span class="unit">°</span></div><small class="field-help">Valeur indicative pour le dessin du plan, pas une donnée photométrique garantie.</small></div>`;
-    html+=`<div class="field"><label>Distance au sujet le plus proche</label><div class="field-inline"><input disabled value="${nearestSubjectDistance(o).toFixed(2)}"><span class="unit">m</span></div></div>`;
     html+=`<button class="change-fixture" id="changeFixtureBtn">Changer de modèle</button>`;
   }
   if(o.labelVisible===undefined)o.labelVisible=true;if(!o.labelPos)o.labelPos='auto';
@@ -586,7 +614,6 @@ function renderInspector(){
   inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;const key=inp.dataset.k;let val=inp.value;if(['height','width','zHeight','elevation','intensity','beam','focal','modifierSize','cct','hue','saturation'].includes(key))val=Number(val);obj[key]=val;if(key==='intensity'||key==='saturation'){const u=inp.parentElement?.querySelector('.unit');if(u)u.textContent=`${val}%`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
   const camModel=document.getElementById('selectedCameraModel');if(camModel)camModel.onchange=()=>{const obj=selected();if(!obj||obj.kind!=='camera')return;obj.cameraModel=camModel.value;state.activePreviewCamera=obj.id;renderCanvas()};
   inspectorFields.querySelectorAll('[data-choice] button').forEach(btn=>btn.onclick=()=>{const obj=selected();if(!obj)return;const key=btn.parentElement.dataset.choice;obj[key]=btn.dataset.value;if(key==='modifier'){if(obj.modifier==='softbox'&&!obj.modifierSize)obj.modifierSize=.9;if(obj.modifier?.startsWith('umbrella'))obj.modifierSize=Number(obj.modifierSize)||1.05}render()});
-  const beamVisible=document.getElementById('beamVisibleSelected');if(beamVisible)beamVisible.onchange=()=>{o.beamVisible=beamVisible.checked;renderCanvas()};
   const labelVisible=document.getElementById('labelVisibleSelected');if(labelVisible)labelVisible.onchange=()=>{o.labelVisible=labelVisible.checked;render()};
   const lock=document.getElementById('lockSelected');if(lock)lock.onchange=()=>{o.locked=lock.checked;render()};
   document.getElementById('deleteSelected').onclick=()=>{state.objects=state.objects.filter(x=>x.id!==o.id);if(state.activePreviewCamera===o.id)state.activePreviewCamera=state.objects.find(x=>x.kind==='camera')?.id||null;state.selected=null;render()};
@@ -799,7 +826,7 @@ function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();resetStageViewport();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;seed();render();renderLibraryList()}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.4',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.8',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
