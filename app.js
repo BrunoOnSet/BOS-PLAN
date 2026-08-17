@@ -1,4 +1,4 @@
-const APP_VERSION='V1.36';
+const APP_VERSION='V1.37';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -859,7 +859,7 @@ function addSubjectPreview(cam,o){
     const fwdX=Math.cos(a),fwdY=Math.sin(a);
     const towardCam=(fwdX*(toCamX/toCamLen)+fwdY*(toCamY/toCamLen)); // 1 = face caméra, 0 = profil, -1 = dos caméra
     const eyeY=headY-headR*.10,eyeRx=Math.max(1.9,headR*.14),eyeRy=Math.max(1.6,headR*.11),pupilR=Math.max(1.1,headR*.06);
-    if(towardCam>0.94){
+    if(towardCam>0.97){
       // Regard caméra franc uniquement si vraiment face caméra
       const spread=headR*.40,leftX=midX-spread,rightX=midX+spread,noseX=midX;
       g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx,ry:eyeRy,class:'preview-face-feature'}));
@@ -867,36 +867,36 @@ function addSubjectPreview(cam,o){
       g.appendChild(svgNode('circle',{cx:leftX,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
       g.appendChild(svgNode('circle',{cx:rightX,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
       g.appendChild(svgNode('polygon',{points:`${noseX},${headY+headR*.02} ${noseX+headR*.08},${headY+headR*.20} ${noseX-headR*.08},${headY+headR*.20}`,class:'preview-face-nose-fill'}));
-    }else if(towardCam>0.68){
-      // Face légèrement de biais : deux yeux quasi symétriques, léger décalage du nez
-      const amt=(0.94-towardCam)/(0.94-0.68);
-      const spread=headR*(.40-.02*amt),shift=dir*headR*(.04+.08*amt),noseX=midX+dir*headR*(.05+.10*amt);
+    }else if(towardCam>0.78){
+      // Face légèrement de biais : deux yeux presque symétriques, nez très peu décalé
+      const amt=(0.97-towardCam)/(0.97-0.78);
+      const spread=headR*(.40-.02*amt),shift=dir*headR*(.03+.06*amt),noseX=midX+dir*headR*(.04+.08*amt);
       const leftX=midX-spread+shift,rightX=midX+spread+shift;
-      const farScale=1-amt*.12,nearScale=1+amt*.04;
+      const farScale=1-amt*.10,nearScale=1+amt*.03;
       const leftNear=dir<0,rightNear=dir>0;
       g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx*(leftNear?nearScale:farScale),ry:eyeRy*(leftNear?nearScale:farScale),class:'preview-face-feature'}));
       g.appendChild(svgNode('ellipse',{cx:rightX,cy:eyeY,rx:eyeRx*(rightNear?nearScale:farScale),ry:eyeRy*(rightNear?nearScale:farScale),class:'preview-face-feature'}));
-      g.appendChild(svgNode('circle',{cx:leftX+dir*eyeRx*.25,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
-      g.appendChild(svgNode('circle',{cx:rightX+dir*eyeRx*.25,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
-      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.02} L ${noseX+dir*headR*.10} ${headY+headR*.17} L ${noseX-dir*headR*.04} ${headY+headR*.29}`,class:'preview-face-nose'}));
-    }else if(towardCam>0.28){
-      // Trois-quarts marqué : deux yeux, mais lointain plus petit, nez plus tourné
-      const amt=(0.68-towardCam)/(0.68-0.28);
-      const spread=headR*(.38-.06*amt),shift=dir*headR*(.12+.10*amt),noseX=midX+dir*headR*(.14+.12*amt);
+      g.appendChild(svgNode('circle',{cx:leftX+dir*eyeRx*.22,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('circle',{cx:rightX+dir*eyeRx*.22,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.02} L ${noseX+dir*headR*.08} ${headY+headR*.17} L ${noseX-dir*headR*.03} ${headY+headR*.28}`,class:'preview-face-nose'}));
+    }else if(towardCam>0.42){
+      // Trois-quarts doux : deux yeux, lointain un peu plus petit, nez qui tourne progressivement
+      const amt=(0.78-towardCam)/(0.78-0.42);
+      const spread=headR*(.39-.05*amt),shift=dir*headR*(.08+.10*amt),noseX=midX+dir*headR*(.10+.12*amt);
       const leftX=midX-spread+shift,rightX=midX+spread+shift;
-      const farScale=1-amt*.38,nearScale=1+amt*.05;
+      const farScale=1-amt*.28,nearScale=1+amt*.04;
       const leftNear=dir<0,rightNear=dir>0;
       g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx*(leftNear?nearScale:farScale),ry:eyeRy*(leftNear?nearScale:farScale),class:'preview-face-feature'}));
       g.appendChild(svgNode('ellipse',{cx:rightX,cy:eyeY,rx:eyeRx*(rightNear?nearScale:farScale),ry:eyeRy*(rightNear?nearScale:farScale),class:'preview-face-feature'}));
-      g.appendChild(svgNode('circle',{cx:leftX+dir*eyeRx*.35,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
-      g.appendChild(svgNode('circle',{cx:rightX+dir*eyeRx*.35,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
-      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.02} L ${noseX+dir*headR*.14} ${headY+headR*.16} L ${noseX-dir*headR*.05} ${headY+headR*.31}`,class:'preview-face-nose'}));
-    }else if(towardCam>-0.05){
-      // Profil / quasi profil
-      const eyeX=midX+dir*headR*.18,noseX=midX+dir*headR*.30;
-      g.appendChild(svgNode('ellipse',{cx:eyeX,cy:eyeY,rx:eyeRx*1.05,ry:eyeRy*1.05,class:'preview-face-feature'}));
-      g.appendChild(svgNode('circle',{cx:eyeX+dir*eyeRx*.22,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
-      g.appendChild(svgNode('path',{d:`M ${noseX-dir*headR*.04} ${headY+headR*.00} Q ${noseX+dir*headR*.18} ${headY+headR*.16} ${noseX-dir*headR*.02} ${headY+headR*.34}`,class:'preview-face-profile'}));
+      g.appendChild(svgNode('circle',{cx:leftX+dir*eyeRx*.3,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('circle',{cx:rightX+dir*eyeRx*.3,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.02} L ${noseX+dir*headR*.12} ${headY+headR*.17} L ${noseX-dir*headR*.04} ${headY+headR*.30}`,class:'preview-face-nose'}));
+    }else if(towardCam>-0.30){
+      // Profil / quasi profil : un oeil + un vrai triangle de nez qui sort du visage
+      const eyeX=midX+dir*headR*.12,triBaseX=midX+dir*headR*.16,triTipX=midX+dir*headR*.52,triY=headY+headR*.10;
+      g.appendChild(svgNode('ellipse',{cx:eyeX,cy:eyeY,rx:eyeRx*1.02,ry:eyeRy*1.02,class:'preview-face-feature'}));
+      g.appendChild(svgNode('circle',{cx:eyeX+dir*eyeRx*.20,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('polygon',{points:`${triTipX},${triY} ${triBaseX},${triY-headR*.12} ${triBaseX},${triY+headR*.12}`,class:'preview-face-nose-solid'}));
     }else{
       // Dos caméra
       g.appendChild(svgNode('path',{d:`M ${midX-headR*.26} ${headY-headR*.06} Q ${midX} ${headY+headR*.12} ${midX+headR*.26} ${headY-headR*.06}`,class:'preview-face-back'}));
@@ -1047,7 +1047,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;seed();resetStageViewport();render();renderLibraryList()}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.36',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.37',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);

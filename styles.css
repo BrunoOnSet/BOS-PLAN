@@ -212,3 +212,5 @@ button{border:0;border-radius:12px;padding:10px 14px;font-weight:750}.ghost{back
 @media (prefers-color-scheme:dark){.top-tool{background:#1b2028;border-color:var(--line);color:var(--text)}.export-popover{background:rgba(17,22,31,.98);border-color:#2f3945}}
 
 .preview-face-nose-fill{fill:#eef2f7;stroke:none;opacity:.96}
+
+.preview-face-nose-solid{fill:#eef2f7;stroke:#1f2430;stroke-width:1.8;stroke-linejoin:round;opacity:.98}
