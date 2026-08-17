@@ -220,3 +220,28 @@ button{border:0;border-radius:12px;padding:10px 14px;font-weight:750}.ghost{back
 .preview-face-nose-solid{fill:#111;stroke:none;opacity:.98}
 
 [hidden]{display:none!important}
+
+/* --- V1.43 : onglets Plan / Mes plans --- */
+.main-tabs{display:flex;gap:6px;margin:0 0 14px;padding:4px;width:max-content;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.main-tab{min-width:110px;padding:9px 15px;border-radius:10px;background:transparent;border:0;color:var(--muted);font-size:12px;font-weight:850}
+.main-tab.active{background:var(--blue-soft);color:var(--blue)}
+.main-view.hidden{display:none!important}
+.inline-library-card{padding:18px;min-height:360px}
+.inline-library-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
+.inline-library-head h2{margin:0;font-size:20px}.inline-library-head p{margin:4px 0 0;color:var(--muted);font-size:11px}
+.inline-plan-library-list .folder-block{background:transparent}
+.inline-plan-library-list .folder-title{font-size:12px}
+.inline-plan-library-list .plan-row{grid-template-columns:130px minmax(0,1fr) auto;padding:12px}
+.inline-plan-library-list .plan-row-preview{width:130px}
+.inline-plan-library-list .plan-thumb{border-radius:10px}
+.inline-plan-library-list .plan-row-main strong{font-size:14px}
+.inline-plan-library-list .plan-row-main small{font-size:10px}
+.inline-plan-library-list .plan-row-actions button{font-size:10px;padding:8px 10px}
+@media(max-width:900px){
+  .main-tabs{width:100%;display:grid;grid-template-columns:1fr 1fr;margin-bottom:12px}
+  .main-tab{width:100%;min-width:0}
+  .inline-library-card{padding:12px}
+  .inline-plan-library-list .plan-row{grid-template-columns:92px 1fr;gap:10px}
+  .inline-plan-library-list .plan-row-preview{width:92px}
+  .inline-plan-library-list .plan-row-actions{grid-column:1/-1}
+}
