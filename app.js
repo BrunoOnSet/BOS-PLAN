@@ -1,4 +1,4 @@
-const APP_VERSION='V1.37';
+const APP_VERSION='V1.41';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -892,11 +892,11 @@ function addSubjectPreview(cam,o){
       g.appendChild(svgNode('circle',{cx:rightX+dir*eyeRx*.3,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
       g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.02} L ${noseX+dir*headR*.12} ${headY+headR*.17} L ${noseX-dir*headR*.04} ${headY+headR*.30}`,class:'preview-face-nose'}));
     }else if(towardCam>-0.30){
-      // Profil / quasi profil : un oeil + un vrai triangle de nez qui sort du visage
-      const eyeX=midX+dir*headR*.12,triBaseX=midX+dir*headR*.16,triTipX=midX+dir*headR*.52,triY=headY+headR*.10;
-      g.appendChild(svgNode('ellipse',{cx:eyeX,cy:eyeY,rx:eyeRx*1.02,ry:eyeRy*1.02,class:'preview-face-feature'}));
-      g.appendChild(svgNode('circle',{cx:eyeX+dir*eyeRx*.20,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
-      g.appendChild(svgNode('polygon',{points:`${triTipX},${triY} ${triBaseX},${triY-headR*.12} ${triBaseX},${triY+headR*.12}`,class:'preview-face-nose-solid'}));
+      // Profil / quasi profil : un oeil placé au-dessus + nez noir clairement hors du visage
+      const eyeX=midX+dir*headR*.33,eyeYProfile=headY-headR*.16,triBaseX=midX+dir*headR*.92,triTipX=midX+dir*headR*1.28,triY=headY+headR*.04;
+      g.appendChild(svgNode('ellipse',{cx:eyeX,cy:eyeYProfile,rx:eyeRx*1.02,ry:eyeRy*1.02,class:'preview-face-feature'}));
+      g.appendChild(svgNode('circle',{cx:eyeX+dir*eyeRx*.20,cy:eyeYProfile,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('polygon',{points:`${triTipX},${triY} ${triBaseX},${triY-headR*.14} ${triBaseX},${triY+headR*.14}`,class:'preview-face-nose-solid'}));
     }else{
       // Dos caméra
       g.appendChild(svgNode('path',{d:`M ${midX-headR*.26} ${headY-headR*.06} Q ${midX} ${headY+headR*.12} ${midX+headR*.26} ${headY-headR*.06}`,class:'preview-face-back'}));
@@ -1047,7 +1047,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;seed();resetStageViewport();render();renderLibraryList()}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.37',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.41',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);

@@ -8,8 +8,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>BOS · Plan Feu</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.37" />
-  <link rel="stylesheet" href="styles.css?v=1.37" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.41" />
+  <link rel="stylesheet" href="styles.css?v=1.41" />
 </head>
 <body>
   <div class="app-shell">
@@ -116,7 +116,7 @@
             </div>
           </div>
           <div class="toolbar-note">
-            <strong id="appVersionBadge">V1.37</strong>
+            <strong id="appVersionBadge">V1.41</strong>
             <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
           </div>
         </div>
@@ -160,7 +160,10 @@
               <g id="objectsLayer"></g>
             </svg>
           </div>
-          <div class="scale-note scale-note-below"><strong>1 grand carreau = 1 m</strong><span>petit carreau = 25 cm</span></div>
+          <div class="plan-scale" aria-label="Échelle du plan">
+            <div class="plan-scale-labels"><span>0</span><span>25 cm</span><span>1 m</span></div>
+            <div class="plan-scale-bar"><span class="tick tick-start"></span><span class="tick tick-small"></span><span class="tick tick-end"></span></div>
+          </div>
         </div>
 
         <aside class="inspector card" id="inspector">
@@ -302,6 +305,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.37"></script>
+  <script src="app.js?v=1.41"></script>
 </body>
 </html>
