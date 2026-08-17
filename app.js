@@ -1,4 +1,4 @@
-const APP_VERSION='V1.30';
+const APP_VERSION='V1.31';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -845,7 +845,25 @@ function projectedBillboard(cam,x,y,zCenter,width,height,cls,label){
 function bboxTouchesFrame(b){return b&&b.x1>0&&b.x0<1600&&b.y1>0&&b.y0<900}
 function addSubjectPreview(cam,o){
   const bottom=projectWorld(cam,o.x,o.y,0),top=projectWorld(cam,o.x,o.y,o.height||1.75);if(!bottom||!top)return null;const h=Math.abs(bottom.y-top.y),midX=(bottom.x+top.x)/2,w=Math.max(12,h*.28),g=svgNode('g',{'data-depth':bottom.forward});
-  const headR=Math.max(4,w*.27),headY=top.y+h*.12;g.appendChild(svgNode('circle',{cx:midX,cy:headY,r:headR,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX-w*.38,y:top.y+h*.23,width:w*.76,height:h*.43,rx:w*.22,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX-w*.32,y:top.y+h*.60,width:w*.25,height:h*.40,rx:w*.06,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX+w*.07,y:top.y+h*.60,width:w*.25,height:h*.40,rx:w*.06,class:'preview-subject'}));g.appendChild(svgNode('text',{x:midX,y:Math.max(18,top.y-10),class:'preview-subject-label','text-anchor':'middle'},o.name));
+  const headR=Math.max(4,w*.27),headY=top.y+h*.12;g.appendChild(svgNode('circle',{cx:midX,cy:headY,r:headR,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX-w*.38,y:top.y+h*.23,width:w*.76,height:h*.43,rx:w*.22,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX-w*.32,y:top.y+h*.60,width:w*.25,height:h*.40,rx:w*.06,class:'preview-subject'}));g.appendChild(svgNode('rect',{x:midX+w*.07,y:top.y+h*.60,width:w*.25,height:h*.40,rx:w*.06,class:'preview-subject'}));
+  const faceDelta=((((Number(o.rot||0)-((Number(cam.rot||0)+180)%360))+540)%360)-180),absDelta=Math.abs(faceDelta),turn=Math.max(-1,Math.min(1,faceDelta/90)),faceSize=headR*2;
+  if(faceSize>16){
+    const eyeY=headY-headR*.10,eyeRx=Math.max(1.9,headR*.14),eyeRy=Math.max(1.6,headR*.11),pupilR=Math.max(1.1,headR*.06);
+    if(absDelta<55){
+      const spread=headR*.42,shift=turn*headR*.14,leftX=midX-spread+shift,rightX=midX+spread+shift,noseX=midX+turn*headR*.22;
+      g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx,ry:eyeRy,class:'preview-face-feature'}));
+      g.appendChild(svgNode('ellipse',{cx:rightX,cy:eyeY,rx:eyeRx,ry:eyeRy,class:'preview-face-feature'}));
+      g.appendChild(svgNode('circle',{cx:leftX+turn*eyeRx*.5,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('circle',{cx:rightX+turn*eyeRx*.5,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.03} L ${noseX+turn*headR*.16} ${headY+headR*.24} L ${noseX-headR*.05} ${headY+headR*.28}`,class:'preview-face-nose'}));
+    }else if(absDelta<125){
+      const dir=faceDelta>0?1:-1,eyeX=midX+dir*headR*.18,noseX=midX+dir*headR*.28;
+      g.appendChild(svgNode('ellipse',{cx:eyeX,cy:eyeY,rx:eyeRx,ry:eyeRy,class:'preview-face-feature'}));
+      g.appendChild(svgNode('circle',{cx:eyeX+dir*eyeRx*.25,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('path',{d:`M ${noseX-headR*.04} ${headY+headR*.00} Q ${noseX+dir*headR*.18} ${headY+headR*.18} ${noseX-headR*.02} ${headY+headR*.32}`,class:'preview-face-profile'}));
+    }
+  }
+  g.appendChild(svgNode('text',{x:midX,y:Math.max(18,top.y-10),class:'preview-subject-label','text-anchor':'middle'},o.name));
   return{node:g,depth:bottom.forward,bbox:{x0:midX-w/2,x1:midX+w/2,y0:top.y,y1:bottom.y},subjectHeight:h};
 }
 function addTablePreview(cam,o){
@@ -990,7 +1008,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;seed();resetStageViewport();render();renderLibraryList()}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.30',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.31',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);

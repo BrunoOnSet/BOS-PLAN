@@ -202,3 +202,6 @@ button{border:0;border-radius:12px;padding:10px 14px;font-weight:750}.ghost{back
 .plan-thumb{width:100%;aspect-ratio:1000/620;display:block;border-radius:10px;border:1px solid var(--line);background:#eef2f6;object-fit:cover}
 .plan-row-main{display:flex;flex-direction:column;justify-content:center;min-width:0}
 @media(max-width:900px){.topbar{flex-direction:column;align-items:stretch}.top-left{flex-direction:column;align-items:flex-start}.top-plan-name{width:100%}.top-plan-name label{width:100%;min-width:0}.top-plan-name input{width:100%}.top-actions{width:100%}.top-actions button{flex:1}.plan-row{grid-template-columns:88px 1fr}.plan-row-actions{grid-column:1/-1;padding-left:0}.plan-row-preview{width:88px}}
+
+/* --- V1.31 regards schématiques en vue caméra --- */
+.preview-face-feature{fill:#eef2f7;stroke:none;opacity:.96}.preview-face-pupil{fill:#1f2430;stroke:none}.preview-face-nose{fill:none;stroke:#eef2f7;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;opacity:.95}.preview-face-profile{stroke:#eef2f7;stroke-width:4;stroke-linecap:round;fill:none;opacity:.95}
