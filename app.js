@@ -1,4 +1,4 @@
-const APP_VERSION='V1.9';
+const APP_VERSION='V1.26';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -22,6 +22,7 @@ const dialogTitle=document.getElementById('dialogTitle');
 const brandChoices=document.getElementById('brandChoices');
 const familyChoices=document.getElementById('familyChoices');
 const modelChoices=document.getElementById('modelChoices');
+const favoriteChoices=document.getElementById('favoriteChoices');
 const catalogCount=document.getElementById('catalogCount');
 const simpleGrid=document.getElementById('simpleGrid');
 const simpleLabel=document.getElementById('simpleLabel');
@@ -30,6 +31,8 @@ const labelsModeSelect=document.getElementById('labelsModeSelect');
 const toggleBeamsBtn=document.getElementById('toggleBeamsBtn');
 const gridOpacityRange=document.getElementById('gridOpacityRange');
 const gridOpacityValue=document.getElementById('gridOpacityValue');
+const planLengthRange=document.getElementById('planLengthRange');
+const planLengthValue=document.getElementById('planLengthValue');
 const currentPlanBadge=document.getElementById('currentPlanBadge');
 const libraryDialog=document.getElementById('libraryDialog');
 const planNameInput=document.getElementById('planNameInput');
@@ -157,29 +160,49 @@ const decorCatalog=[
 ];
 
 const CURRENT_KEY='bos-plan-feu-v06-current';
+const FAVORITES_KEY='bos-plan-feu-favorite-lights-v01';
 const LIB_KEY='bos-plan-feu-library-v06';
-let state={objects:[],selected:null,activePreviewCamera:null,cameraModel:'Sony FX3',focal:50,snap:.25,labelsMode:'full',beamsVisible:true,gridOpacity:.5,planId:null,planName:'Plan sans titre',folderId:'folder_general'};
+let state={objects:[],selected:null,activePreviewCamera:null,cameraModel:'Sony FX3',focal:50,snap:.25,labelsMode:'full',beamsVisible:true,gridOpacity:.5,planLength:10,planId:null,planName:'Plan sans titre',folderId:'folder_general',planOptionsOpen:true};
 let library={folders:[{id:'folder_general',name:'Plans'}],plans:[]};
 let drag=null;
 
 // Navigation du plan : le canevas reste toujours ajusté au téléphone au chargement,
 // puis peut être déplacé et zoomé sans modifier les coordonnées réelles du plan.
-const STAGE_W=1000, STAGE_H=620, MAX_VIEW_ZOOM=4;
-let stageViewport={x:0,y:0,w:STAGE_W,h:STAGE_H};
+const STAGE_RATIO=.62, BASE_STAGE_W=1000, MAX_VIEW_ZOOM=4;
+function stageW(){return Math.max(400,Math.round((Number(state.planLength)||10)*SCALE))}
+function stageH(){return Math.round(stageW()*STAGE_RATIO)}
+let stageViewport={x:0,y:0,w:BASE_STAGE_W,h:Math.round(BASE_STAGE_W*STAGE_RATIO)};
 const activeTouchPointers=new Map();
 let panGesture=null, pinchGesture=null;
 function clampViewport(v){
-  const minW=STAGE_W/MAX_VIEW_ZOOM;
-  const w=clamp(Number(v.w)||STAGE_W,minW,STAGE_W),h=w*STAGE_H/STAGE_W;
-  const x=clamp(Number(v.x)||0,0,STAGE_W-w),y=clamp(Number(v.y)||0,0,STAGE_H-h);
+  const fullW=stageW(),fullH=stageH();
+  const minW=fullW/MAX_VIEW_ZOOM;
+  const w=clamp(Number(v.w)||fullW,minW,fullW),h=w*fullH/fullW;
+  const x=clamp(Number(v.x)||0,0,fullW-w),y=clamp(Number(v.y)||0,0,fullH-h);
   return {x,y,w,h};
+}
+function updateStageGeometry(){
+  const w=stageW(),h=stageH();
+  const bg=stage.querySelector('.stage-bg'); if(bg){bg.setAttribute('width',String(w));bg.setAttribute('height',String(h))}
+  const gridRect=stage.querySelector('rect[fill="url(#grid)"]'); if(gridRect){gridRect.setAttribute('width',String(w));gridRect.setAttribute('height',String(h))}
+}
+function setPlanLength(length,{keepViewport=true}={}){
+  const prevW=stageW(),prevH=stageH();
+  state.planLength=clamp(Number(length)||10,4,30);
+  const nextW=stageW(),nextH=stageH();
+  if(keepViewport){
+    stageViewport={x:stageViewport.x/prevW*nextW,y:stageViewport.y/prevH*nextH,w:stageViewport.w/prevW*nextW,h:stageViewport.h/prevH*nextH};
+  }else stageViewport={x:0,y:0,w:nextW,h:nextH};
+  updateStageGeometry();
+  applyStageViewport();
+  scheduleAutosave();
 }
 function applyStageViewport(){
   stageViewport=clampViewport(stageViewport);
   stage.setAttribute('viewBox',`${stageViewport.x} ${stageViewport.y} ${stageViewport.w} ${stageViewport.h}`);
-  if(zoomReadout)zoomReadout.textContent=`${Math.round(STAGE_W/stageViewport.w*100)} %`;
+  if(zoomReadout)zoomReadout.textContent=`${Math.round(stageW()/stageViewport.w*100)} %`;
 }
-function resetStageViewport(){stageViewport={x:0,y:0,w:STAGE_W,h:STAGE_H};applyStageViewport()}
+function resetStageViewport(){stageViewport={x:0,y:0,w:stageW(),h:stageH()};applyStageViewport()}
 function stagePointFromClient(clientX,clientY){
   const r=stage.getBoundingClientRect();
   if(!r.width||!r.height)return {x:stageViewport.x,y:stageViewport.y};
@@ -187,7 +210,8 @@ function stagePointFromClient(clientX,clientY){
 }
 function viewportFromPinch(start,midX,midY,distance){
   const ratio=Math.max(.01,distance/start.distance);
-  const newW=clamp(start.viewport.w/ratio,STAGE_W/MAX_VIEW_ZOOM,STAGE_W),newH=newW*STAGE_H/STAGE_W;
+  const fullW=stageW(),fullH=stageH();
+  const newW=clamp(start.viewport.w/ratio,fullW/MAX_VIEW_ZOOM,fullW),newH=newW*fullH/fullW;
   const r=stage.getBoundingClientRect(),rx=clamp((midX-r.left)/Math.max(1,r.width),0,1),ry=clamp((midY-r.top)/Math.max(1,r.height),0,1);
   return clampViewport({x:start.anchor.x-rx*newW,y:start.anchor.y-ry*newH,w:newW,h:newH});
 }
@@ -238,6 +262,12 @@ if(resetViewBtn)resetViewBtn.addEventListener('click',resetStageViewport);
 let replaceLightId=null;
 let catalogBrand='Amaran';
 let catalogFamily='';
+let catalogFavoritesOnly=false;
+let favoriteLightNames=[];
+function loadFavoriteLights(){try{favoriteLightNames=JSON.parse(localStorage.getItem(FAVORITES_KEY)||'[]');if(!Array.isArray(favoriteLightNames))favoriteLightNames=[]}catch{favoriteLightNames=[]}}
+function persistFavoriteLights(){try{localStorage.setItem(FAVORITES_KEY,JSON.stringify(favoriteLightNames))}catch(e){console.warn('Favorites BOS',e)}}
+function isFavoriteLight(p){return favoriteLightNames.includes(p.name)}
+function toggleFavoriteLight(p){if(isFavoriteLight(p))favoriteLightNames=favoriteLightNames.filter(n=>n!==p.name);else favoriteLightNames=[...favoriteLightNames,p.name];persistFavoriteLights();renderLightChooser()}
 let autosaveTimer=null;
 const SCALE=100;
 
@@ -260,6 +290,9 @@ function ensureStateDefaults(){
   state.planName=state.planName||'Plan sans titre';
   state.folderId=state.folderId||library.folders[0]?.id||'folder_general';
   if(state.planId===undefined)state.planId=null;
+  if(state.planOptionsOpen===undefined)state.planOptionsOpen=true;
+  if(state.planLength===undefined)state.planLength=10;
+  state.planLength=clamp(Number(state.planLength)||10,4,30);
 }
 function loadLibrary(){
   try{const raw=localStorage.getItem(LIB_KEY),v=raw&&JSON.parse(raw);if(v&&Array.isArray(v.folders)&&Array.isArray(v.plans))library=v}catch{}
@@ -282,7 +315,8 @@ function updateGridOpacity(){
   if(gridOpacityRange)gridOpacityRange.value=String(Math.round(v*100));
   if(gridOpacityValue)gridOpacityValue.textContent=`${Math.round(v*100)} %`;
 }
-function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(toggleSnapBtn){const on=Number(state.snap)>0;toggleSnapBtn.classList.toggle('active',on);toggleSnapBtn.textContent=on?'Aimant ON':'Aimant OFF';toggleSnapBtn.setAttribute('aria-pressed',String(on))}if(toggleBeamsBtn){const on=state.beamsVisible!==false;toggleBeamsBtn.classList.toggle('active',on);toggleBeamsBtn.textContent=on?'Faisceau ON':'Faisceau OFF';toggleBeamsBtn.setAttribute('aria-pressed',String(on))}updateGridOpacity()}
+function updatePlanOptionsUI(){const open=state.planOptionsOpen!==false;if(planOptionsBody)planOptionsBody.classList.toggle('hidden',!open);if(planOptionsToggle){planOptionsToggle.setAttribute('aria-expanded',String(open));if(planOptionsToggleText)planOptionsToggleText.textContent=open?'MASQUER':'OUVRIR';if(planOptionsToggleCaret)planOptionsToggleCaret.textContent=open?'⌃':'⌄';}}
+function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(toggleSnapBtn){const on=Number(state.snap)>0;toggleSnapBtn.classList.toggle('active',on);toggleSnapBtn.textContent=on?'Aimant ON':'Aimant OFF';toggleSnapBtn.setAttribute('aria-pressed',String(on))}if(toggleBeamsBtn){const on=state.beamsVisible!==false;toggleBeamsBtn.classList.toggle('active',on);toggleBeamsBtn.textContent=on?'Faisceau ON':'Faisceau OFF';toggleBeamsBtn.setAttribute('aria-pressed',String(on))}updateGridOpacity();if(planLengthRange)planLengthRange.value=String(Number(state.planLength||10));if(planLengthValue)planLengthValue.textContent=`${Number(state.planLength||10).toFixed(Number(state.planLength)%1?1:0)} m`;updatePlanOptionsUI()}
 function snapshotState(){const copy=deepClone(state);copy.selected=null;return copy}
 function persistCurrent(){
   try{localStorage.setItem(CURRENT_KEY,JSON.stringify(snapshotState()));if(state.planId){const rec=library.plans.find(p=>p.id===state.planId);if(rec){rec.name=state.planName;rec.folderId=state.folderId;rec.updatedAt=Date.now();rec.state=snapshotState();persistLibrary()}}}catch(e){console.warn('Autosave BOS',e)}
@@ -328,9 +362,9 @@ function normalizeLightObject(o){
 }
 function seed(){
   state.objects=[
-    {id:uid('cam'),kind:'camera',name:'Caméra A',x:500,y:505,rot:-90,height:1.55,cameraModel:'Sony FX3',focal:50,locked:false},
-    {id:uid('subj'),kind:'subject',name:'Sujet 1',x:500,y:300,rot:90,height:1.75,locked:false},
-    {id:uid('light'),kind:'light',name:'amaran Halo 200x',brand:'Amaran',family:'Halo',form:'halo',short:'H200',x:285,y:330,rot:-15,beam:55,beamVisible:true,intensity:60,height:2.0,modifier:'none',modifierSize:.9,colorMode:'cct',cct:5600,hue:0,saturation:100,locked:false}
+    {id:uid('cam'),kind:'camera',name:'Caméra A',x:stageW()/2,y:stageH()-115,rot:-90,height:1.55,cameraModel:'Sony FX3',focal:50,locked:false},
+    {id:uid('subj'),kind:'subject',name:'Sujet 1',x:stageW()/2,y:stageH()/2-10,rot:90,height:1.75,locked:false},
+    {id:uid('light'),kind:'light',name:'amaran Halo 200x',brand:'Amaran',family:'Halo',form:'halo',short:'H200',x:Math.max(140,stageW()/2-215),y:stageH()/2+20,rot:-15,beam:55,beamVisible:true,intensity:60,height:2.0,modifier:'none',modifierSize:.9,colorMode:'cct',cct:5600,hue:0,saturation:100,locked:false}
   ];
   state.objects.forEach(o=>{o.labelVisible=true;o.labelPos='auto'});
   state.selected=state.objects[2].id;
@@ -347,6 +381,7 @@ function normalizeCameraObject(o){
 function cameraSettings(o){normalizeCameraObject(o);return {sensor:cameras[o.cameraModel],focal:o.focal};}
 
 function renderCanvas(){
+  updateStageGeometry();
   state.objects.filter(o=>o.kind==='decor'&&o.type==='wall').forEach(syncWallChildren);
   beamsLayer.innerHTML='';objectsLayer.innerHTML='';
   state.objects.filter(o=>o.kind==='camera').forEach(drawCameraFov);
@@ -358,7 +393,7 @@ function renderCanvas(){
 }
 function render(){renderCanvas();renderInspector()}
 function drawCameraFov(o){
-  const {sensor,focal}=cameraSettings(o),hfov=2*Math.atan(sensor.w/(2*focal)),len=460,half=Math.tan(hfov/2)*len;
+  const {sensor,focal}=cameraSettings(o),hfov=2*Math.atan(sensor.w/(2*focal)),len=stageH()*.74,half=Math.tan(hfov/2)*len;
   beamsLayer.appendChild(svgEl('polygon',{points:`0,0 ${len},${-half} ${len},${half}`,class:'camera-fov',transform:`translate(${o.x} ${o.y}) rotate(${o.rot})`}));
 }
 function kelvinToRgb(kelvin){
@@ -855,14 +890,14 @@ function renderPreview(){
   previewTabs.classList.remove('hidden');cameraReadout.textContent=`${cams.length} caméras · sélectionne la vue à afficher.`;cams.forEach(c=>{const b=document.createElement('button');b.className='preview-tab'+(c.id===state.activePreviewCamera?' active':'');b.textContent=c.name;b.onclick=()=>{state.activePreviewCamera=c.id;renderPreview()};previewTabs.appendChild(b)});cameraMonitors.className='camera-monitors one';cameraMonitors.appendChild(makeMonitorCard(cams.find(c=>c.id===state.activePreviewCamera)||cams[0]));
 }
 
-function addSubject(){const n=state.objects.filter(o=>o.kind==='subject').length+1,o={id:uid('subj'),kind:'subject',name:`Sujet ${n}`,x:500+40*(n-1),y:300,rot:90,height:1.75,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
-function addCamera(){const n=state.objects.filter(o=>o.kind==='camera').length+1,o={id:uid('cam'),kind:'camera',name:`Caméra ${String.fromCharCode(64+n)}`,x:500+(n-1)*55,y:520,rot:-90,height:1.55,cameraModel:'Sony FX3',focal:50,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;state.activePreviewCamera=o.id;closeAddDialog();render()}
+function addSubject(){const n=state.objects.filter(o=>o.kind==='subject').length+1,o={id:uid('subj'),kind:'subject',name:`Sujet ${n}`,x:stageW()/2+40*(n-1),y:stageH()/2-10,rot:90,height:1.75,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
+function addCamera(){const n=state.objects.filter(o=>o.kind==='camera').length+1,o={id:uid('cam'),kind:'camera',name:`Caméra ${String.fromCharCode(64+n)}`,x:stageW()/2+(n-1)*55,y:stageH()-100,rot:-90,height:1.55,cameraModel:'Sony FX3',focal:50,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;state.activePreviewCamera=o.id;closeAddDialog();render()}
 function addLightFromPreset(p,replaceId=null){
   if(replaceId){const o=state.objects.find(x=>x.id===replaceId);if(o){const mod=o.modifier||'none';Object.assign(o,{name:p.name,brand:p.brand,family:p.family,form:p.form,short:p.short,beam:p.beam,aspect:p.aspect,length:p.length,modifier:supportsSoftbox({kind:'light',form:p.form})?mod:'none'});state.selected=o.id;closeAddDialog();render();return}}
   const n=state.objects.filter(o=>o.kind==='light').length,o={id:uid('light'),kind:'light',name:p.name,brand:p.brand,family:p.family,form:p.form,short:p.short,x:245+(n%5)*72,y:235+(n%3)*75,rot:0,beam:p.beam,beamVisible:true,intensity:50,height:2,aspect:p.aspect,length:p.length,modifier:'none',modifierSize:.9,colorMode:'cct',cct:5600,hue:0,saturation:100,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;closeAddDialog();render();
 }
-function addAccessory(p){const n=state.objects.filter(o=>o.kind==='accessory').length,o={id:uid('acc'),kind:'accessory',type:p.type,name:p.name,short:p.short,x:360+(n%4)*80,y:190+(n%3)*70,rot:0,width:p.width,height:p.height,zHeight:p.height,elevation:p.type==='borniol'?.2:.35,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
-function addDecor(p){const n=state.objects.filter(o=>o.kind==='decor').length,zHeight=p.type==='wall'?2.5:p.type==='door'?2.04:p.type==='window'?1.2:.75,elevation=p.type==='window'?.9:0,o={id:uid('decor'),kind:'decor',type:p.type,name:p.name,x:430+(n%4)*90,y:160+(n%3)*80,rot:0,width:p.width,height:p.height,zHeight,elevation,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
+function addAccessory(p){const n=state.objects.filter(o=>o.kind==='accessory').length,o={id:uid('acc'),kind:'accessory',type:p.type,name:p.name,short:p.short,x:Math.max(180,stageW()/2-140)+(n%4)*80,y:160+(n%3)*70,rot:0,width:p.width,height:p.height,zHeight:p.height,elevation:p.type==='borniol'?.2:.35,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
+function addDecor(p){const n=state.objects.filter(o=>o.kind==='decor').length,zHeight=p.type==='wall'?2.5:p.type==='door'?2.04:p.type==='window'?1.2:.75,elevation=p.type==='window'?.9:0,o={id:uid('decor'),kind:'decor',type:p.type,name:p.name,x:Math.max(200,stageW()/2-70)+(n%4)*90,y:140+(n%3)*80,rot:0,width:p.width,height:p.height,zHeight,elevation,locked:false,labelVisible:true,labelPos:'auto'};state.objects.push(o);state.selected=o.id;closeAddDialog();render()}
 
 function openAddDialog(){replaceLightId=null;showKinds();if(typeof addDialog.showModal==='function')addDialog.showModal();else addDialog.setAttribute('open','')}
 function closeAddDialog(){if(addDialog.open&&typeof addDialog.close==='function')addDialog.close();else addDialog.removeAttribute('open');replaceLightId=null}
@@ -877,16 +912,21 @@ function renderLightChooser(){
   const fams=[...new Set(lightCatalog.filter(p=>p.brand===catalogBrand).map(p=>p.family))];if(!fams.includes(catalogFamily))catalogFamily=fams[0]||'';
   familyChoices.innerHTML=fams.map(f=>`<button class="choice-btn ${catalogFamily===f?'active':''}" data-family="${esc(f)}">${esc(f.toUpperCase())}</button>`).join('');
   familyChoices.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{catalogFamily=btn.dataset.family;renderLightChooser()});
-  const items=lightCatalog.filter(p=>p.brand===catalogBrand&&p.family===catalogFamily);
-  modelChoices.innerHTML=items.map(p=>`<button class="choice-btn model-btn" data-light-index="${lightCatalog.indexOf(p)}">${esc(p.name.replace(/^amaran\s+|^Aputure\s+/i,''))}</button>`).join('');
-  modelChoices.querySelectorAll('button').forEach(btn=>btn.onclick=()=>addLightFromPreset(lightCatalog[Number(btn.dataset.lightIndex)],replaceLightId));
-  catalogCount.textContent=`${lightCatalog.filter(p=>p.brand===catalogBrand).length} modèles ${catalogBrand} · même catalogue matériel que BOS Light`;
+  if(favoriteChoices){favoriteChoices.innerHTML=`<button class="choice-btn ${!catalogFavoritesOnly?'active':''}" data-fav-mode="all">Tous</button><button class="choice-btn ${catalogFavoritesOnly?'active':''}" data-fav-mode="fav">★ Favoris</button>`;favoriteChoices.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{catalogFavoritesOnly=btn.dataset.favMode==='fav';renderLightChooser()})}
+  const baseItems=lightCatalog.filter(p=>p.brand===catalogBrand&&p.family===catalogFamily);
+  const items=catalogFavoritesOnly?baseItems.filter(isFavoriteLight):baseItems;
+  modelChoices.innerHTML=items.length?items.map(p=>`<div class="model-row"><button class="choice-btn model-btn" data-light-index="${lightCatalog.indexOf(p)}">${esc(p.name.replace(/^amaran\s+|^Aputure\s+/i,''))}</button><button class="fav-btn ${isFavoriteLight(p)?'active':''}" type="button" data-fav-index="${lightCatalog.indexOf(p)}" title="Favori">★</button></div>`).join(''):`<div class="empty-inline">Aucun projecteur favori dans cette famille.</div>`;
+  modelChoices.querySelectorAll('.model-btn').forEach(btn=>btn.onclick=()=>addLightFromPreset(lightCatalog[Number(btn.dataset.lightIndex)],replaceLightId));
+  modelChoices.querySelectorAll('.fav-btn').forEach(btn=>btn.onclick=(e)=>{e.stopPropagation();toggleFavoriteLight(lightCatalog[Number(btn.dataset.favIndex)])});
+  const favCount=lightCatalog.filter(isFavoriteLight).length;
+  catalogCount.textContent=`${lightCatalog.filter(p=>p.brand===catalogBrand).length} modèles ${catalogBrand} · ${favCount} favori${favCount>1?'s':''}`;
 }
 function openSimpleChooser(kind){
   hideChoosers();simpleChooser.classList.remove('hidden');const list=kind==='accessory'?accessoryCatalog:decorCatalog;dialogTitle.textContent=kind==='accessory'?'Ajouter un accessoire':'Ajouter un élément de décor';simpleLabel.textContent=kind==='accessory'?'ACCESSOIRE':'DÉCOR';simpleGrid.innerHTML=list.map((p,i)=>`<button class="simple-card" data-index="${i}"><span class="simple-picto ${kind}-${p.type}">${kind==='accessory'?(p.type==='diffusion'?'▧':p.type==='borniol'?'▬':p.type==='negative'?'■':'◇'):(p.type==='wall'?'━':p.type==='door'?'◿':p.type==='window'?'▥':'▭')}</span><strong>${esc(p.name)}</strong><small>${p.width} × ${p.height} m</small></button>`).join('');simpleGrid.querySelectorAll('button').forEach(btn=>btn.onclick=()=>kind==='accessory'?addAccessory(list[Number(btn.dataset.index)]):addDecor(list[Number(btn.dataset.index)]));
 }
 
-document.getElementById('openAddBtn').onclick=openAddDialog;document.getElementById('closeAddBtn').onclick=closeAddDialog;document.getElementById('backToKindsBtn').onclick=()=>{replaceLightId=null;showKinds()};document.getElementById('backSimpleBtn').onclick=showKinds;
+document.getElementById('openAddBtn').onclick=openAddDialog;
+if(planOptionsToggle)planOptionsToggle.onclick=()=>{state.planOptionsOpen=!(state.planOptionsOpen!==false);updatePlanOptionsUI();scheduleAutosave();persistCurrent()};document.getElementById('closeAddBtn').onclick=closeAddDialog;document.getElementById('backToKindsBtn').onclick=()=>{replaceLightId=null;showKinds()};document.getElementById('backSimpleBtn').onclick=showKinds;
 addKinds.querySelectorAll('[data-kind]').forEach(btn=>btn.onclick=()=>{const k=btn.dataset.kind;if(k==='light')openLightChooser();else if(k==='subject')addSubject();else if(k==='camera')addCamera();else openSimpleChooser(k)});
 addDialog.addEventListener('click',e=>{if(e.target===addDialog)closeAddDialog()});
 
@@ -924,8 +964,8 @@ function savePlanToLibrary(){
 function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;resetStageViewport();state=deepClone(rec.state);state.planId=rec.id;state.planName=rec.name;state.folderId=rec.folderId;ensureStateDefaults();state.objects.forEach(normalizeSceneObject);migrateOpeningBindings();state.selected=null;if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null;persistCurrent();render();closeLibraryDialog()}
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
-function newPlan(){persistCurrent();resetStageViewport();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;seed();render();renderLibraryList()}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.24',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function newPlan(){persistCurrent();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;seed();resetStageViewport();render();renderLibraryList()}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.26',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
@@ -964,11 +1004,12 @@ function inlineSvgStyles(original,clone){
   os.forEach((node,i)=>{const target=cs[i];if(!target)return;const st=getComputedStyle(node);const css=props.map(p=>`${p}:${st.getPropertyValue(p)}`).join(';');target.setAttribute('style',`${target.getAttribute('style')||''};${css}`)});
 }
 function exportPng(){
-  const clone=stage.cloneNode(true);clone.setAttribute('xmlns',NS);clone.setAttribute('width','1600');clone.setAttribute('height','992');clone.setAttribute('viewBox','0 0 1000 620');
+  const fullW=stageW(),fullH=stageH(),outW=1600,outH=Math.round(outW*fullH/fullW);
+  const clone=stage.cloneNode(true);clone.setAttribute('xmlns',NS);clone.setAttribute('width',String(outW));clone.setAttribute('height',String(outH));clone.setAttribute('viewBox',`0 0 ${fullW} ${fullH}`);
   inlineSvgStyles(stage,clone);
   clone.querySelectorAll('.rotation-gizmo,.selection-ring,.selection-box,.hit').forEach(n=>n.remove());
   const source=new XMLSerializer().serializeToString(clone),blob=new Blob([source],{type:'image/svg+xml;charset=utf-8'}),url=URL.createObjectURL(blob),img=new Image();
-  img.onload=()=>{const c=document.createElement('canvas');c.width=1600;c.height=992;const ctx=c.getContext('2d');ctx.fillStyle=getComputedStyle(document.querySelector('.stage-bg')).getPropertyValue('fill')||'#fbfcfe';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);c.toBlob(b=>{if(b)downloadBlob(b,`${safeName(state.planName)}_Plan_Feu.png`)},'image/png')};
+  img.onload=()=>{const c=document.createElement('canvas');c.width=outW;c.height=outH;const ctx=c.getContext('2d');ctx.fillStyle=getComputedStyle(document.querySelector('.stage-bg')).getPropertyValue('fill')||'#fbfcfe';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);c.toBlob(b=>{if(b)downloadBlob(b,`${safeName(state.planName)}_Plan_Feu.png`)},'image/png')};
   img.onerror=()=>{URL.revokeObjectURL(url);alert("L’export PNG n’a pas pu être généré sur ce navigateur.")};img.src=url;
 }
 document.getElementById('exportBtn').onclick=exportPng;
@@ -976,6 +1017,7 @@ if(toggleSnapBtn)toggleSnapBtn.onclick=()=>{state.snap=Number(state.snap)>0?0:.2
 labelsModeSelect.onchange=()=>{state.labelsMode=labelsModeSelect.value;renderCanvas()};
 toggleBeamsBtn.onclick=()=>{state.beamsVisible=state.beamsVisible===false;updatePlanBadge();renderCanvas()};
 if(gridOpacityRange){gridOpacityRange.oninput=()=>{state.gridOpacity=clamp(Number(gridOpacityRange.value)/100,0,1);updateGridOpacity();scheduleAutosave()};gridOpacityRange.onchange=()=>persistCurrent()}
+if(planLengthRange){planLengthRange.oninput=()=>{setPlanLength(Number(planLengthRange.value),{keepViewport:true});updatePlanBadge()};planLengthRange.onchange=()=>persistCurrent()}
 
 function normalizeSceneObject(o){
   if(o.kind==='light')normalizeLightObject(o);
@@ -986,12 +1028,12 @@ function normalizeSceneObject(o){
 }
 function load(){
   const versionBadge=document.getElementById('appVersionBadge');if(versionBadge)versionBadge.textContent=APP_VERSION;
-  loadLibrary();
+  loadLibrary();loadFavoriteLights();
   try{
     const raw=localStorage.getItem(CURRENT_KEY)||localStorage.getItem('bos-plan-feu-v05')||localStorage.getItem('bos-plan-feu-v04')||localStorage.getItem('bos-plan-feu-v03')||localStorage.getItem('bos-plan-feu-v02')||localStorage.getItem('bos-plan-feu-v01');
     const saved=raw&&JSON.parse(raw);
     if(saved&&Array.isArray(saved.objects)){state=saved;if(!state.planName)state.planName=localStorage.getItem(CURRENT_KEY)?'Plan sans titre':'Plan importé V0.5';state.objects.forEach(normalizeSceneObject);migrateOpeningBindings();if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null}else seed();
   }catch{seed()}
-  ensureStateDefaults();if(!cameras[state.cameraModel])state.cameraModel='Sony FX3';state.focal=Number(state.focal)||50;resetStageViewport();updatePlanBadge();render();
+  ensureStateDefaults();if(!cameras[state.cameraModel])state.cameraModel='Sony FX3';state.focal=Number(state.focal)||50;updateStageGeometry();resetStageViewport();updatePlanBadge();render();
 }
 window.addEventListener('resize',renderPreview);load();

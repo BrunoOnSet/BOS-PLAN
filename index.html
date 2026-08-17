@@ -8,8 +8,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>BOS · Plan Feu</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.24" />
-  <link rel="stylesheet" href="styles.css?v=1.24" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.26" />
+  <link rel="stylesheet" href="styles.css?v=1.26" />
 </head>
 <body>
   <div class="app-shell">
@@ -30,51 +30,60 @@
     </header>
 
     <main>
-      <section class="toolbar card">
-        <div class="tool-group grow">
-          <label>Éléments du plan</label>
-          <button class="add-main" id="openAddBtn"><span class="plus">+</span> Ajouter</button>
-        </div>
-        <div class="plan-tools">
-          <div class="beam-global-control beam-toggle-only" title="Aimante les déplacements à la grille de 25 cm. La grille visuelle reste à 25 cm / 1 m.">
-            <button id="toggleSnapBtn" class="beam-toggle active" type="button" aria-pressed="true">Aimant ON</button>
+      <section class="toolbar card plan-options-card">
+        <button class="plan-options-toggle" id="planOptionsToggle" type="button" aria-expanded="true" aria-controls="planOptionsBody">
+          <span>Options de plan</span>
+          <span class="plan-options-toggle-right"><em id="planOptionsToggleText">MASQUER</em><i id="planOptionsToggleCaret">⌃</i></span>
+        </button>
+        <div class="plan-options-body" id="planOptionsBody">
+          <div class="plan-tools">
+            <div class="beam-global-control beam-toggle-only" title="Aimante les déplacements à la grille de 25 cm. La grille visuelle reste à 25 cm / 1 m.">
+              <button id="toggleSnapBtn" class="beam-toggle active" type="button" aria-pressed="true">Aimant ON</button>
+            </div>
+            <label>Infos
+              <select id="labelsModeSelect">
+                <option value="full">Complet</option>
+                <option value="names">Noms</option>
+                <option value="lightcrew">Light crew</option>
+                <option value="direction">Réalisation</option>
+                <option value="hidden">Masqué</option>
+              </select>
+            </label>
+            <div class="grid-opacity-control">
+              <div class="grid-opacity-head"><span>Opacité grille</span><output id="gridOpacityValue">50 %</output></div>
+              <input id="gridOpacityRange" type="range" min="0" max="100" step="5" value="50" aria-label="Opacité de la grille" />
+            </div>
+            <div class="beam-global-control beam-toggle-only">
+              <button id="toggleBeamsBtn" class="beam-toggle active" type="button" aria-pressed="true">Faisceau ON</button>
+            </div>
+            <div class="grid-opacity-control plan-length-control">
+              <div class="grid-opacity-head"><span>Longueur du plan</span><output id="planLengthValue">10 m</output></div>
+              <input id="planLengthRange" type="range" min="4" max="30" step="0.5" value="10" aria-label="Longueur du plan" />
+            </div>
           </div>
-          <label>Infos
-            <select id="labelsModeSelect">
-              <option value="full">Complet</option>
-              <option value="names">Noms</option>
-              <option value="lightcrew">Light crew</option>
-              <option value="direction">Réalisation</option>
-              <option value="hidden">Masqué</option>
-            </select>
-          </label>
-          <div class="grid-opacity-control">
-            <div class="grid-opacity-head"><span>Opacité grille</span><output id="gridOpacityValue">50 %</output></div>
-            <input id="gridOpacityRange" type="range" min="0" max="100" step="5" value="50" aria-label="Opacité de la grille" />
+          <div class="toolbar-note">
+            <strong id="appVersionBadge">V1.26</strong>
+            <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
           </div>
-          <div class="beam-global-control beam-toggle-only">
-            <button id="toggleBeamsBtn" class="beam-toggle active" type="button" aria-pressed="true">Faisceau ON</button>
-          </div>
-        </div>
-        <div class="toolbar-note">
-          <strong id="appVersionBadge">V1.24</strong>
-          <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
         </div>
       </section>
 
       <section class="workspace-grid">
         <div class="stage-card card">
-          <div class="section-head">
+          <div class="section-head stage-head">
             <div>
               <h2>Plan</h2>
               <p>Vue du dessus · déplacer et orienter directement les éléments</p>
             </div>
-            <div class="legend">
+            <div class="stage-head-side">
+              <button class="add-main stage-add-btn" id="openAddBtn"><span class="plus">+</span> Ajouter</button>
+              <div class="legend">
               <span><i class="dot camera-dot"></i>caméra</span>
               <span><i class="dot subject-dot"></i>sujet</span>
               <span><i class="dot light-dot"></i>lumière</span>
               <span><i class="dot accessory-dot"></i>accessoire</span>
               <span><i class="dot decor-dot"></i>décor</span>
+              </div>
             </div>
           </div>
           <div class="stage-wrap" id="stageWrap">
@@ -240,6 +249,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.24"></script>
+  <script src="app.js?v=1.26"></script>
 </body>
 </html>
