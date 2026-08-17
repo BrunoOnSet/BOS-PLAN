@@ -282,7 +282,7 @@ function updateGridOpacity(){
   if(gridOpacityRange)gridOpacityRange.value=String(Math.round(v*100));
   if(gridOpacityValue)gridOpacityValue.textContent=`${Math.round(v*100)} %`;
 }
-function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(toggleSnapBtn){const on=Number(state.snap)>0;toggleSnapBtn.classList.toggle('active',on);toggleSnapBtn.textContent=on?'Accroche ON':'Accroche OFF';toggleSnapBtn.setAttribute('aria-pressed',String(on))}if(toggleBeamsBtn){const on=state.beamsVisible!==false;toggleBeamsBtn.classList.toggle('active',on);toggleBeamsBtn.textContent=on?'Faisceaux ON':'Faisceaux OFF';toggleBeamsBtn.setAttribute('aria-pressed',String(on))}updateGridOpacity()}
+function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(toggleSnapBtn){const on=Number(state.snap)>0;toggleSnapBtn.classList.toggle('active',on);toggleSnapBtn.textContent=on?'Aimant ON':'Aimant OFF';toggleSnapBtn.setAttribute('aria-pressed',String(on))}if(toggleBeamsBtn){const on=state.beamsVisible!==false;toggleBeamsBtn.classList.toggle('active',on);toggleBeamsBtn.textContent=on?'Faisceau ON':'Faisceau OFF';toggleBeamsBtn.setAttribute('aria-pressed',String(on))}updateGridOpacity()}
 function snapshotState(){const copy=deepClone(state);copy.selected=null;return copy}
 function persistCurrent(){
   try{localStorage.setItem(CURRENT_KEY,JSON.stringify(snapshotState()));if(state.planId){const rec=library.plans.find(p=>p.id===state.planId);if(rec){rec.name=state.planName;rec.folderId=state.folderId;rec.updatedAt=Date.now();rec.state=snapshotState();persistLibrary()}}}catch(e){console.warn('Autosave BOS',e)}
@@ -878,7 +878,7 @@ function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();resetStageViewport();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;seed();render();renderLibraryList()}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.16',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.17',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
