@@ -1,4 +1,4 @@
-const APP_VERSION='V1.35';
+const APP_VERSION='V1.36';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -601,7 +601,7 @@ function drawObject(o){
   if(o.kind==='camera'){
     g.appendChild(svgEl('circle',{r:36,class:'selection-ring'}));g.appendChild(svgEl('rect',{x:-21,y:-16,width:34,height:32,rx:7,class:'camera-body'}));g.appendChild(svgEl('polygon',{points:'13,-10 34,-17 34,17 13,10',class:'camera-lens'}));
   } else if(o.kind==='subject'){
-    g.appendChild(svgEl('circle',{r:34,class:'selection-ring'}));g.appendChild(svgEl('circle',{cx:0,cy:0,r:22,class:'subject-body'}));g.appendChild(svgEl('polygon',{points:'12,0 2,-6 2,6',class:'subject-nose'}));
+    g.appendChild(svgEl('circle',{r:34,class:'selection-ring'}));g.appendChild(svgEl('circle',{cx:0,cy:0,r:22,class:'subject-body'}));g.appendChild(svgEl('polygon',{points:'30,0 18,-7 18,7',class:'subject-nose'}));
   } else if(o.kind==='light'){
     g.appendChild(svgEl('circle',{r:48,class:'selection-ring'}));addLightModifier(g,o);addFixtureSymbol(g,o);labelY=62;
   } else if(o.kind==='accessory'){
@@ -859,34 +859,46 @@ function addSubjectPreview(cam,o){
     const fwdX=Math.cos(a),fwdY=Math.sin(a);
     const towardCam=(fwdX*(toCamX/toCamLen)+fwdY*(toCamY/toCamLen)); // 1 = face caméra, 0 = profil, -1 = dos caméra
     const eyeY=headY-headR*.10,eyeRx=Math.max(1.9,headR*.14),eyeRy=Math.max(1.6,headR*.11),pupilR=Math.max(1.1,headR*.06);
-    if(towardCam>0.8){
-      // Regard caméra franc
+    if(towardCam>0.94){
+      // Regard caméra franc uniquement si vraiment face caméra
       const spread=headR*.40,leftX=midX-spread,rightX=midX+spread,noseX=midX;
       g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx,ry:eyeRy,class:'preview-face-feature'}));
       g.appendChild(svgNode('ellipse',{cx:rightX,cy:eyeY,rx:eyeRx,ry:eyeRy,class:'preview-face-feature'}));
       g.appendChild(svgNode('circle',{cx:leftX,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
       g.appendChild(svgNode('circle',{cx:rightX,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
-      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.02} L ${noseX+headR*.05} ${headY+headR*.18} L ${noseX-headR*.05} ${headY+headR*.18} Z`,class:'preview-face-nose'}));
-    }else if(towardCam>0.35){
-      // Léger trois-quarts : deux yeux, nez légèrement orienté
-      const turnAmt=(1-towardCam)*.75;
-      const spread=headR*(.42-.08*turnAmt),shift=dir*headR*(.08+.10*turnAmt),noseX=midX+dir*headR*(.10+.12*turnAmt);
+      g.appendChild(svgNode('polygon',{points:`${noseX},${headY+headR*.02} ${noseX+headR*.08},${headY+headR*.20} ${noseX-headR*.08},${headY+headR*.20}`,class:'preview-face-nose-fill'}));
+    }else if(towardCam>0.68){
+      // Face légèrement de biais : deux yeux quasi symétriques, léger décalage du nez
+      const amt=(0.94-towardCam)/(0.94-0.68);
+      const spread=headR*(.40-.02*amt),shift=dir*headR*(.04+.08*amt),noseX=midX+dir*headR*(.05+.10*amt);
       const leftX=midX-spread+shift,rightX=midX+spread+shift;
-      const farScale=1-turnAmt*.30,nearScale=1+turnAmt*.06;
+      const farScale=1-amt*.12,nearScale=1+amt*.04;
+      const leftNear=dir<0,rightNear=dir>0;
+      g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx*(leftNear?nearScale:farScale),ry:eyeRy*(leftNear?nearScale:farScale),class:'preview-face-feature'}));
+      g.appendChild(svgNode('ellipse',{cx:rightX,cy:eyeY,rx:eyeRx*(rightNear?nearScale:farScale),ry:eyeRy*(rightNear?nearScale:farScale),class:'preview-face-feature'}));
+      g.appendChild(svgNode('circle',{cx:leftX+dir*eyeRx*.25,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('circle',{cx:rightX+dir*eyeRx*.25,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
+      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.02} L ${noseX+dir*headR*.10} ${headY+headR*.17} L ${noseX-dir*headR*.04} ${headY+headR*.29}`,class:'preview-face-nose'}));
+    }else if(towardCam>0.28){
+      // Trois-quarts marqué : deux yeux, mais lointain plus petit, nez plus tourné
+      const amt=(0.68-towardCam)/(0.68-0.28);
+      const spread=headR*(.38-.06*amt),shift=dir*headR*(.12+.10*amt),noseX=midX+dir*headR*(.14+.12*amt);
+      const leftX=midX-spread+shift,rightX=midX+spread+shift;
+      const farScale=1-amt*.38,nearScale=1+amt*.05;
       const leftNear=dir<0,rightNear=dir>0;
       g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx*(leftNear?nearScale:farScale),ry:eyeRy*(leftNear?nearScale:farScale),class:'preview-face-feature'}));
       g.appendChild(svgNode('ellipse',{cx:rightX,cy:eyeY,rx:eyeRx*(rightNear?nearScale:farScale),ry:eyeRy*(rightNear?nearScale:farScale),class:'preview-face-feature'}));
       g.appendChild(svgNode('circle',{cx:leftX+dir*eyeRx*.35,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
       g.appendChild(svgNode('circle',{cx:rightX+dir*eyeRx*.35,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
-      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.02} L ${noseX+dir*headR*.12} ${headY+headR*.18} L ${noseX-dir*headR*.04} ${headY+headR*.30}`,class:'preview-face-nose'}));
-    }else if(towardCam>-0.2){
-      // Profil / fort trois-quarts : un oeil + nez profil, sens déterminé par la projection réelle dans le cadre
+      g.appendChild(svgNode('path',{d:`M ${noseX} ${headY+headR*.02} L ${noseX+dir*headR*.14} ${headY+headR*.16} L ${noseX-dir*headR*.05} ${headY+headR*.31}`,class:'preview-face-nose'}));
+    }else if(towardCam>-0.05){
+      // Profil / quasi profil
       const eyeX=midX+dir*headR*.18,noseX=midX+dir*headR*.30;
       g.appendChild(svgNode('ellipse',{cx:eyeX,cy:eyeY,rx:eyeRx*1.05,ry:eyeRy*1.05,class:'preview-face-feature'}));
       g.appendChild(svgNode('circle',{cx:eyeX+dir*eyeRx*.22,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
       g.appendChild(svgNode('path',{d:`M ${noseX-dir*headR*.04} ${headY+headR*.00} Q ${noseX+dir*headR*.18} ${headY+headR*.16} ${noseX-dir*headR*.02} ${headY+headR*.34}`,class:'preview-face-profile'}));
     }else{
-      // Dos caméra : on évite les yeux/nez faux, simple arc de nuque discret
+      // Dos caméra
       g.appendChild(svgNode('path',{d:`M ${midX-headR*.26} ${headY-headR*.06} Q ${midX} ${headY+headR*.12} ${midX+headR*.26} ${headY-headR*.06}`,class:'preview-face-back'}));
     }
   }
@@ -983,7 +995,7 @@ function planThumbnailData(planState){
   const len=clamp(Number(planState?.planLength)||10,4,30),w=Math.max(400,Math.round(len*SCALE)),h=Math.round(w*STAGE_RATIO),TW=220,TH=Math.round(TW*h/w),sx=TW/w,sy=TH/h;
   const bg='<rect width="100%" height="100%" fill="#eef2f6"/>';
   const grid=[]; for(let x=0;x<=TW;x+=22)grid.push(`<line x1="${x}" y1="0" x2="${x}" y2="${TH}" stroke="#d7dde6" stroke-width="1"/>`); for(let y=0;y<=TH;y+=22)grid.push(`<line x1="0" y1="${y}" x2="${TW}" y2="${y}" stroke="#d7dde6" stroke-width="1"/>`);
-  const objs=(planState?.objects||[]).map(o=>{const x=(o.x||0)*sx,y=(o.y||0)*sy; if(o.kind==='camera')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><polygon points="-8,-5 8,0 -8,5" fill="#1b6fff"/><rect x="8" y="-7" width="14" height="14" rx="3" fill="#2d7cff"/></g>`; if(o.kind==='subject')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><circle cx="0" cy="0" r="9" fill="#1d2533" opacity=".95"/><polygon points="6,0 1.5,-2.8 1.5,2.8" fill="#f5f7fb" stroke="#1d2533" stroke-width="1.1" stroke-linejoin="round"/></g>`; if(o.kind==='light')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><rect x="-11" y="-7" width="22" height="14" rx="4" fill="#ffbf3a" stroke="#8d6100" stroke-width="1.5"/><circle cx="8" cy="0" r="7" fill="#f6efcf" stroke="#8d6100" stroke-width="1.5"/></g>`; if(o.kind==='accessory')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="-14" y1="0" x2="14" y2="0" stroke="#9aa3ad" stroke-width="4" stroke-linecap="round"/></g>`; if(o.kind==='decor')return o.type==='wall'?`<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="${-(o.width||2)*50*sx/2}" y1="0" x2="${(o.width||2)*50*sx/2}" y2="0" stroke="#b7aa9a" stroke-width="4" stroke-linecap="square"/></g>`:''; return ''}).join('');
+  const objs=(planState?.objects||[]).map(o=>{const x=(o.x||0)*sx,y=(o.y||0)*sy; if(o.kind==='camera')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><polygon points="-8,-5 8,0 -8,5" fill="#1b6fff"/><rect x="8" y="-7" width="14" height="14" rx="3" fill="#2d7cff"/></g>`; if(o.kind==='subject')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><circle cx="0" cy="0" r="9" fill="#1d2533" opacity=".95"/><polygon points="12,0 6.2,-3.4 6.2,3.4" fill="#111"/></g>`; if(o.kind==='light')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><rect x="-11" y="-7" width="22" height="14" rx="4" fill="#ffbf3a" stroke="#8d6100" stroke-width="1.5"/><circle cx="8" cy="0" r="7" fill="#f6efcf" stroke="#8d6100" stroke-width="1.5"/></g>`; if(o.kind==='accessory')return `<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="-14" y1="0" x2="14" y2="0" stroke="#9aa3ad" stroke-width="4" stroke-linecap="round"/></g>`; if(o.kind==='decor')return o.type==='wall'?`<g transform="translate(${x},${y}) rotate(${o.rot||0})"><line x1="${-(o.width||2)*50*sx/2}" y1="0" x2="${(o.width||2)*50*sx/2}" y2="0" stroke="#b7aa9a" stroke-width="4" stroke-linecap="square"/></g>`:''; return ''}).join('');
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${TW}" height="${TH}" viewBox="0 0 ${TW} ${TH}">${bg}${grid.join('')}${objs}</svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }
@@ -1035,7 +1047,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;seed();resetStageViewport();render();renderLibraryList()}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.35',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.36',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
