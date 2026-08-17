@@ -123,3 +123,11 @@ button{border:0;border-radius:12px;padding:10px 14px;font-weight:750}.ghost{back
 .grid-large{stroke-width:1.45}
 .library-share-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 @media(max-width:900px){.library-share-actions{width:100%;justify-content:flex-start}.library-share-actions .small-btn{flex:1}}
+
+
+/* --- V1.5 : réglages repliables + orientation des sources linéaires --- */
+.inspector-head{width:100%;display:flex;align-items:center;gap:10px;text-align:left;background:transparent;border:0;padding:0 0 12px;color:var(--text);cursor:pointer}
+.inspector-head>div{min-width:0;flex:1}.inspector-head h2{font-size:15px;margin:0 0 2px}.inspector-head p{font-size:12px;color:var(--muted);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inspector-toggle-label{font-size:10px;font-weight:850;color:var(--blue);text-transform:uppercase;letter-spacing:.04em}.inspector-chevron{font-size:17px;line-height:1;color:var(--muted);transition:transform .18s ease}
+.inspector.collapsed{min-height:0;padding-bottom:4px}.inspector.collapsed .inspector-head{padding-bottom:8px}.inspector.collapsed .inspector-chevron{transform:rotate(180deg)}
+@media(max-width:900px){.inspector{padding:14px}.inspector.collapsed{padding-bottom:6px}.inspector-toggle-label{font-size:11px}}

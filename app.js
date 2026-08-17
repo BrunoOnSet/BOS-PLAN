@@ -2,6 +2,10 @@ const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
 const objectsLayer=document.getElementById('objectsLayer');
+const inspector=document.getElementById('inspector');
+const inspectorBody=document.getElementById('inspectorBody');
+const toggleInspectorBtn=document.getElementById('toggleInspectorBtn');
+const inspectorToggleLabel=document.getElementById('inspectorToggleLabel');
 const inspectorEmpty=document.getElementById('inspectorEmpty');
 const inspectorFields=document.getElementById('inspectorFields');
 const selectionHint=document.getElementById('selectionHint');
@@ -357,14 +361,17 @@ function lightColor(o,alpha=.14){
 }
 function lightColorText(o){normalizeLightObject(o);return o.colorMode==='hsi'?`H ${Math.round(o.hue)}° · S ${Math.round(o.saturation)}%`:`${Math.round(o.cct)} K`}
 function fixtureBeamOffset(o){
-  // Les panneaux et mats sont vus du dessus par leur longueur : leur face émettrice est perpendiculaire à cette longueur.
-  return ['panel','panel-wide','nova','nova-narrow','mat'].includes(o?.form)?90:0;
+  // Les sources plates / linéaires sont représentées vues du dessus par leur longueur.
+  // Leur face lumineuse projette donc perpendiculairement au grand axe de l'icône.
+  return ['panel','panel-wide','nova','nova-narrow','mat','strip','tube','pixel-bar'].includes(o?.form)?90:0;
 }
 function displayBeamAngle(o){
   const raw=clamp(Number(o.beam)||55,4,179);
-  // Le cône du plan reste un repère schématique. Les sources surfaciques très ouvertes deviennent sinon illisibles en vue du dessus.
+  // Le cône du plan reste un repère schématique. Les sources surfaciques ou linéaires
+  // très ouvertes sont volontairement plafonnées afin de garder le plan lisible.
   if(o?.form==='nova-narrow')return raw;
   if(['mat','panel','panel-wide','nova'].includes(o?.form))return Math.min(raw,68);
+  if(['strip','tube','pixel-bar'].includes(o?.form))return Math.min(raw,60);
   return raw;
 }
 function drawLightBeam(o){
@@ -521,6 +528,17 @@ stage.addEventListener('pointermove',e=>{
 function endGesture(){if(!drag)return;try{stage.releasePointerCapture?.(drag.pointerId)}catch{}drag=null;render()}
 stage.addEventListener('pointerup',endGesture);stage.addEventListener('pointercancel',endGesture);
 stage.addEventListener('pointerdown',e=>{if(e.target.closest?.('.object'))return;if(state.selected!==null){state.selected=null;render()}});
+
+let inspectorCollapsed=false;
+function updateInspectorCollapse(){
+  if(!inspector||!inspectorBody||!toggleInspectorBtn)return;
+  inspector.classList.toggle('collapsed',inspectorCollapsed);
+  inspectorBody.hidden=inspectorCollapsed;
+  toggleInspectorBtn.setAttribute('aria-expanded',String(!inspectorCollapsed));
+  if(inspectorToggleLabel)inspectorToggleLabel.textContent=inspectorCollapsed?'Afficher':'Masquer';
+}
+if(toggleInspectorBtn)toggleInspectorBtn.addEventListener('click',()=>{inspectorCollapsed=!inspectorCollapsed;updateInspectorCollapse()});
+updateInspectorCollapse();
 
 function selected(){return state.objects.find(o=>o.id===state.selected)}
 function kindLabel(o){return o.kind==='camera'?'Caméra':o.kind==='subject'?'Personnage':o.kind==='light'?`${o.brand||''} · ${o.family||'Projecteur'}`:o.kind==='accessory'?'Accessoire':'Décor'}

@@ -1,20 +1,16 @@
-BOS · PLAN FEU — V1.4
+BOS · PLAN FEU — V1.5
 
 Nouveautés :
-- Opacité de grille revue : à 100 %, la grille est maintenant nettement visible ; à faible valeur elle reste discrète.
-- 50 % devient la valeur par défaut des nouveaux plans.
-- Les grands carreaux de 1 m restent plus marqués que les subdivisions de 25 cm.
-- Panneaux LED / Flex / NOVA : le faisceau schématique part désormais perpendiculairement à la longueur du panneau.
-- Leur cône de plan est volontairement limité pour ne plus envahir tout le schéma.
-- La poignée de rotation des panneaux suit maintenant la direction du faisceau.
-- Mes plans : bouton « Partager une copie » et import d’un fichier BOS Plan Feu.
-- Sur les appareils compatibles, le partage utilise directement la feuille de partage système ; sinon le fichier modifiable est téléchargé.
+- Réglages repliables : bouton « Masquer / Afficher » pour libérer de la place, particulièrement utile sur téléphone avant la vue caméra.
+- L’état replié est uniquement un choix d’interface : il ne modifie pas le plan.
+- Grille : 50 % reste la valeur par défaut de chaque nouveau plan. Les plans existants conservent leur propre réglage.
+- Sources plates / linéaires : correction de l’orientation du faisceau pour le SM5c et les formes strip / tube / pixel bar. Le faisceau part maintenant perpendiculairement à la longueur de l’icône.
+- Le cône schématique des sources linéaires très ouvertes est plafonné à 60° pour ne plus envahir tout le plan.
+
+Navigation mobile V1.4 conservée : déplacement tactile, pinch-to-zoom et Recentrer.
 
 Échelle : 1 grand carreau = 1 m ; petit carreau = 25 cm.
 Aimantation : Libre / 10 cm / 25 cm / 50 cm / 1 m.
 
 IMPORTANT — faisceaux :
-Le cône affiché reste un repère de plan schématique. Pour les sources surfaciques très ouvertes (Flex, panneaux, NOVA), l’angle visuel est plafonné afin de garder le plan lisible ; il ne doit pas être interprété comme une photométrie constructeur.
-
-
-V1.4 : navigation mobile revue — plan ajusté à la largeur, déplacement tactile du fond, pinch-to-zoom à deux doigts (jusqu’à 400 %) et bouton Recentrer.
+Le cône affiché reste un repère de plan schématique. Il ne doit pas être interprété comme une photométrie constructeur garantie.

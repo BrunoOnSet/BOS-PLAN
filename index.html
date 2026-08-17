@@ -59,7 +59,7 @@
           </div>
         </div>
         <div class="toolbar-note">
-          <strong>V1.4</strong>
+          <strong>V1.5</strong>
           <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
         </div>
       </section>
@@ -104,17 +104,21 @@
         </div>
 
         <aside class="inspector card" id="inspector">
-          <div class="section-head compact">
+          <button class="inspector-head" id="toggleInspectorBtn" type="button" aria-expanded="true" aria-controls="inspectorBody">
             <div>
               <h2>Réglages</h2>
               <p id="selectionHint">Sélectionne un élément</p>
             </div>
+            <span class="inspector-toggle-label" id="inspectorToggleLabel">Masquer</span>
+            <span class="inspector-chevron" aria-hidden="true">⌃</span>
+          </button>
+          <div id="inspectorBody">
+            <div id="inspectorEmpty" class="empty-state">
+              <div class="empty-icon">↖</div>
+              <p>Clique sur une caméra, un personnage ou un projecteur pour modifier ses paramètres.</p>
+            </div>
+            <div id="inspectorFields" class="fields hidden"></div>
           </div>
-          <div id="inspectorEmpty" class="empty-state">
-            <div class="empty-icon">↖</div>
-            <p>Clique sur une caméra, un personnage ou un projecteur pour modifier ses paramètres.</p>
-          </div>
-          <div id="inspectorFields" class="fields hidden"></div>
         </aside>
       </section>
 
