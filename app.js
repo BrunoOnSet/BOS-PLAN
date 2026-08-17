@@ -282,7 +282,7 @@ function updateGridOpacity(){
   if(gridOpacityRange)gridOpacityRange.value=String(Math.round(v*100));
   if(gridOpacityValue)gridOpacityValue.textContent=`${Math.round(v*100)} %`;
 }
-function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(toggleSnapBtn){const on=Number(state.snap)>0;toggleSnapBtn.classList.toggle('active',on);toggleSnapBtn.textContent=on?'Aimantation ON':'Aimantation OFF';toggleSnapBtn.setAttribute('aria-pressed',String(on))}if(toggleBeamsBtn){const on=state.beamsVisible!==false;toggleBeamsBtn.classList.toggle('active',on);toggleBeamsBtn.textContent=on?'Faisceaux ON':'Faisceaux OFF';toggleBeamsBtn.setAttribute('aria-pressed',String(on))}updateGridOpacity()}
+function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(toggleSnapBtn){const on=Number(state.snap)>0;toggleSnapBtn.classList.toggle('active',on);toggleSnapBtn.textContent=on?'Accroche ON':'Accroche OFF';toggleSnapBtn.setAttribute('aria-pressed',String(on))}if(toggleBeamsBtn){const on=state.beamsVisible!==false;toggleBeamsBtn.classList.toggle('active',on);toggleBeamsBtn.textContent=on?'Faisceaux ON':'Faisceaux OFF';toggleBeamsBtn.setAttribute('aria-pressed',String(on))}updateGridOpacity()}
 function snapshotState(){const copy=deepClone(state);copy.selected=null;return copy}
 function persistCurrent(){
   try{localStorage.setItem(CURRENT_KEY,JSON.stringify(snapshotState()));if(state.planId){const rec=library.plans.find(p=>p.id===state.planId);if(rec){rec.name=state.planName;rec.folderId=state.folderId;rec.updatedAt=Date.now();rec.state=snapshotState();persistLibrary()}}}catch(e){console.warn('Autosave BOS',e)}
@@ -467,16 +467,25 @@ function addFixtureSymbol(g,o){
 function drawAccessorySymbol(g,o){
   const w=Math.max(50,(o.width||1.2)*55),h=Math.max(16,Math.min(82,(o.height||1.2)*32));
   if(o.type==='diffusion'){
-    g.appendChild(svgEl('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:3,class:'diffusion-frame'}));
-    for(let x=-w/2+10;x<w/2;x+=14)g.appendChild(svgEl('line',{x1:x,y1:-h/2+3,x2:x+Math.min(h-6,18),y2:h/2-3,class:'diffusion-hatch'}));
+    const barH=Math.max(10,Math.min(16,h*0.28));
+    g.appendChild(svgEl('rect',{x:-w/2,y:-barH/2,width:w,height:barH,rx:barH/2,class:'diffusion-bar'}));
+    g.appendChild(svgEl('line',{x1:-w/2+6,y1:0,x2:w/2-6,y2:0,class:'diffusion-bar-core'}));
+    for(let x=-w/2+10;x<w/2-10;x+=16)g.appendChild(svgEl('line',{x1:x,y1:-barH/2+1.5,x2:x+8,y2:barH/2-1.5,class:'diffusion-hatch'}));
+    g.appendChild(svgEl('line',{x1:-w/2,y1:-barH/2-4,x2:-w/2,y2:barH/2+4,class:'grip-cap'}));
+    g.appendChild(svgEl('line',{x1:w/2,y1:-barH/2-4,x2:w/2,y2:barH/2+4,class:'grip-cap'}));
+    return {w,h:Math.max(20,barH+10)};
   } else if(o.type==='borniol'){
     g.appendChild(svgEl('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:3,class:'borniol-shape'}));
   } else if(o.type==='negative'){
     g.appendChild(svgEl('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:3,class:'negative-shape'}));
     g.appendChild(svgEl('text',{x:0,y:4,'text-anchor':'middle',class:'negative-code'})).textContent='NEG';
   } else {
-    g.appendChild(svgEl('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:4,class:'reflector-shape'}));
-    g.appendChild(svgEl('line',{x1:-w/2+8,y1:h/2-5,x2:w/2-8,y2:-h/2+5,class:'reflector-line'}));
+    const barH=Math.max(10,Math.min(16,h*0.28));
+    g.appendChild(svgEl('rect',{x:-w/2,y:-barH/2,width:w,height:barH,rx:barH/2,class:'reflector-bar'}));
+    g.appendChild(svgEl('line',{x1:-w/2+10,y1:barH/2-1,x2:w/2-10,y2:-barH/2+1,class:'reflector-line'}));
+    g.appendChild(svgEl('line',{x1:-w/2,y1:-barH/2-4,x2:-w/2,y2:barH/2+4,class:'grip-cap'}));
+    g.appendChild(svgEl('line',{x1:w/2,y1:-barH/2-4,x2:w/2,y2:barH/2+4,class:'grip-cap'}));
+    return {w,h:Math.max(20,barH+10)};
   }
   return {w,h};
 }
@@ -511,7 +520,7 @@ function infoModeForObject(o){
   if(mode==='hidden')return 'hidden';
   if(mode==='full')return 'full';
   if(mode==='names')return 'names';
-  if(mode==='lightcrew')return (o.kind==='light'||o.kind==='accessory')?'full':'names';
+  if(mode==='lightcrew')return (o.kind==='light'||o.kind==='accessory')?'full':'hidden';
   if(mode==='direction')return (o.kind==='light'||o.kind==='accessory')?'hidden':'names';
   return 'names';
 }
@@ -557,7 +566,7 @@ function drawObject(o){
     if(pos==='top'){ly=-hitH/2-18}else if(pos==='left'){lx=-hitW/2-12;ly=0;anchor='end'}else if(pos==='right'){lx=hitW/2+12;ly=0;anchor='start'}else if(pos==='bottom'){ly=hitH/2+24}
     const label=svgEl('g',{transform:`rotate(${-o.rot}) translate(${lx} ${ly})`}),t=svgEl('text',{class:'object-label','text-anchor':anchor});t.textContent=o.name;label.appendChild(t);
     if(objectInfoMode==='full'){
-      if(o.kind==='light'){const st=svgEl('text',{class:'object-sub','text-anchor':anchor,y:17});const modLabel=o.modifier==='softbox'?'Softbox':o.modifier==='umbrella-reflect'?'Parapluie réflexion':o.modifier==='umbrella-diffusion'?'Parapluie diffusion':'';st.textContent=`${o.family||'Lumière'}${modLabel?' · '+modLabel:''} · ${o.intensity}% · ${lightColorText(o)}`;label.appendChild(st)}
+      if(o.kind==='light'){const st=svgEl('text',{class:'object-sub','text-anchor':anchor,y:17});const modLabel=o.modifier==='softbox'?'Softbox':o.modifier==='umbrella-reflect'?'Parapluie réflexion':o.modifier==='umbrella-diffusion'?'Parapluie diffusion':'';st.textContent=`${o.intensity}% · ${lightColorText(o)}${modLabel?' · '+modLabel:''}`;label.appendChild(st)}
       else if(o.kind==='accessory'||o.kind==='decor'){const st=svgEl('text',{class:'object-sub','text-anchor':anchor,y:17});st.textContent=`${(o.width||0).toFixed(1)} × ${(o.height||0).toFixed(1)} m${o.locked?' · verrouillé':''}`;label.appendChild(st)}
     }
     g.appendChild(label);
@@ -608,9 +617,11 @@ function toggleButtons(key,current,options){return `<div class="inspector-choice
 function renderInspector(){
   const o=selected();if(!o){inspectorEmpty.classList.remove('hidden');inspectorFields.classList.add('hidden');selectionHint.textContent='Sélectionne un élément';if(changeFixtureHeader)changeFixtureHeader.classList.add('hidden');return}
   inspectorEmpty.classList.add('hidden');inspectorFields.classList.remove('hidden');selectionHint.textContent=o.kind==='light'?modelDisplayName(o):kindLabel(o);
-  if(changeFixtureHeader){changeFixtureHeader.classList.toggle('hidden',o.kind!=='light');changeFixtureHeader.onclick=o.kind==='light'?(()=>openLightChooser(o.id)):null}
+  if(changeFixtureHeader)changeFixtureHeader.classList.add('hidden');
   if(o.kind==='camera')normalizeCameraObject(o);
-  let html=`<div class="field"><label>${o.kind==='light'?'Nom personnalisé':'Nom'}</label><input data-k="name" value="${esc(o.name)}"></div>`;
+  let html='';
+  if(o.kind==='light'){const currentIndex=Math.max(0,lightCatalog.findIndex(p=>p.name===o.name||p.short===o.short));html+=`<div class="field"><label>Projecteur / modèle</label><select id="selectedLightModel">${lightCatalog.map((p,i)=>`<option value="${i}" ${i===currentIndex?'selected':''}>${esc(p.name.replace(/^amaran\s+/i,'Amaran ').replace(/^Aputure\s+/i,'Aputure '))}</option>`).join('')}</select></div>`;}
+  html+=`<div class="field"><label>${o.kind==='light'?'Nom personnalisé':'Nom'}</label><input data-k="name" value="${esc(o.name)}"></div>`;
   if(o.kind==='camera'){
     html+=`<div class="field"><label>Caméra / capteur</label><select id="selectedCameraModel">${Object.keys(cameras).map(name=>`<option value="${esc(name)}" ${o.cameraModel===name?'selected':''}>${esc(name)}</option>`).join('')}</select></div>`;
     html+=`<div class="field-grid"><div class="field"><label>Focale</label><div class="field-inline"><input data-k="focal" type="number" min="12" max="300" step="1" value="${o.focal}"><span class="unit">mm</span></div></div><div class="field"><label>Hauteur caméra</label><div class="field-inline"><input data-k="height" type="number" min="0.2" max="4" step="0.05" value="${o.height}"><span class="unit">m</span></div></div></div>`;
@@ -656,6 +667,7 @@ function renderInspector(){
   inspectorFields.innerHTML=html;
   inspectorFields.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',()=>{const obj=selected();if(!obj)return;const key=inp.dataset.k;let val=inp.value;if(['height','width','zHeight','elevation','intensity','beam','focal','modifierSize','cct','hue','saturation'].includes(key))val=Number(val);if(inp.dataset.convert==='cm')val=val/100;obj[key]=val;const out=inp.parentElement?.querySelector(`[data-slider-out="${key}"]`);if(out){const shown=inp.dataset.convert==='cm'?Math.round(Number(inp.value)):(key==='cct'?Math.round(Number(inp.value)):(key==='beam'?Math.round(Number(inp.value)):Math.round(Number(inp.value))));out.textContent=key==='cct'?`${shown} K`:key==='beam'?`${shown}°`:inp.dataset.convert==='cm'?`${shown} cm`:`${shown} %`}if(obj.kind==='camera')state.activePreviewCamera=obj.id;renderCanvas()}));
   const camModel=document.getElementById('selectedCameraModel');if(camModel)camModel.onchange=()=>{const obj=selected();if(!obj||obj.kind!=='camera')return;obj.cameraModel=camModel.value;state.activePreviewCamera=obj.id;renderCanvas()};
+  const lightModel=document.getElementById('selectedLightModel');if(lightModel)lightModel.onchange=()=>{const obj=selected();if(!obj||obj.kind!=='light')return;const preset=lightCatalog[Number(lightModel.value)];if(preset)addLightFromPreset(preset,obj.id)};
   inspectorFields.querySelectorAll('[data-choice] button').forEach(btn=>btn.onclick=()=>{const obj=selected();if(!obj)return;const key=btn.parentElement.dataset.choice;obj[key]=btn.dataset.value;if(key==='modifier'){if(obj.modifier==='softbox'&&!obj.modifierSize)obj.modifierSize=.9;if(obj.modifier?.startsWith('umbrella'))obj.modifierSize=Number(obj.modifierSize)||1.05}render()});
   const lock=document.getElementById('lockSelected');if(lock)lock.onchange=()=>{o.locked=lock.checked;render()};
 }
@@ -866,7 +878,7 @@ function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();resetStageViewport();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;seed();render();renderLibraryList()}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.11',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.16',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);

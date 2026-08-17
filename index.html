@@ -8,8 +8,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>BOS · Plan Feu</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.11" />
-  <link rel="stylesheet" href="styles.css?v=1.11" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.16" />
+  <link rel="stylesheet" href="styles.css?v=1.16" />
 </head>
 <body>
   <div class="app-shell">
@@ -37,8 +37,8 @@
         </div>
         <div class="plan-tools">
           <div class="beam-global-control" title="Aimante les déplacements à la grille de 25 cm. La grille visuelle reste à 25 cm / 1 m.">
-            <span>Aimantation</span>
-            <button id="toggleSnapBtn" class="beam-toggle active" type="button" aria-pressed="true">Aimantation ON</button>
+            <span>Accroche grille</span>
+            <button id="toggleSnapBtn" class="beam-toggle active" type="button" aria-pressed="true">Accroche ON</button>
           </div>
           <label>Infos
             <select id="labelsModeSelect">
@@ -59,7 +59,7 @@
           </div>
         </div>
         <div class="toolbar-note">
-          <strong id="appVersionBadge">V1.11</strong>
+          <strong id="appVersionBadge">V1.16</strong>
           <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
         </div>
       </section>
@@ -109,7 +109,7 @@
               <h2>Réglages</h2>
               <div class="selection-model-row">
                 <p id="selectionHint">Sélectionne un élément</p>
-                <button id="changeFixtureHeader" class="header-model-change hidden" type="button" title="Changer de modèle" aria-label="Changer de modèle">⌄</button>
+                <button id="changeFixtureHeader" class="header-model-change hidden" type="button" title="Changer de modèle" aria-label="Changer de modèle"></button>
               </div>
             </div>
             <button class="inspector-collapse-btn" id="toggleInspectorBtn" type="button" aria-expanded="true" aria-controls="inspectorBody">
@@ -242,6 +242,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.11"></script>
+  <script src="app.js?v=1.16"></script>
 </body>
 </html>
