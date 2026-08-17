@@ -1,4 +1,4 @@
-const APP_VERSION='V1.41';
+const APP_VERSION='V1.42';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -873,7 +873,7 @@ function addSubjectPreview(cam,o){
       const spread=headR*(.40-.02*amt),shift=dir*headR*(.03+.06*amt),noseX=midX+dir*headR*(.04+.08*amt);
       const leftX=midX-spread+shift,rightX=midX+spread+shift;
       const farScale=1-amt*.10,nearScale=1+amt*.03;
-      const leftNear=dir<0,rightNear=dir>0;
+      const leftNear=dir>0,rightNear=dir<0;
       g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx*(leftNear?nearScale:farScale),ry:eyeRy*(leftNear?nearScale:farScale),class:'preview-face-feature'}));
       g.appendChild(svgNode('ellipse',{cx:rightX,cy:eyeY,rx:eyeRx*(rightNear?nearScale:farScale),ry:eyeRy*(rightNear?nearScale:farScale),class:'preview-face-feature'}));
       g.appendChild(svgNode('circle',{cx:leftX+dir*eyeRx*.22,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
@@ -885,7 +885,7 @@ function addSubjectPreview(cam,o){
       const spread=headR*(.39-.05*amt),shift=dir*headR*(.08+.10*amt),noseX=midX+dir*headR*(.10+.12*amt);
       const leftX=midX-spread+shift,rightX=midX+spread+shift;
       const farScale=1-amt*.28,nearScale=1+amt*.04;
-      const leftNear=dir<0,rightNear=dir>0;
+      const leftNear=dir>0,rightNear=dir<0;
       g.appendChild(svgNode('ellipse',{cx:leftX,cy:eyeY,rx:eyeRx*(leftNear?nearScale:farScale),ry:eyeRy*(leftNear?nearScale:farScale),class:'preview-face-feature'}));
       g.appendChild(svgNode('ellipse',{cx:rightX,cy:eyeY,rx:eyeRx*(rightNear?nearScale:farScale),ry:eyeRy*(rightNear?nearScale:farScale),class:'preview-face-feature'}));
       g.appendChild(svgNode('circle',{cx:leftX+dir*eyeRx*.3,cy:eyeY,r:pupilR,class:'preview-face-pupil'}));
@@ -1047,7 +1047,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;seed();resetStageViewport();render();renderLibraryList()}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.41',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.42',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
