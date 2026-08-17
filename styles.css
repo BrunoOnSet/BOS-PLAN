@@ -142,3 +142,26 @@ button{border:0;border-radius:12px;padding:10px 14px;font-weight:750}.ghost{back
 .inspector-collapse-btn{display:flex;align-items:center;gap:8px;padding:6px 4px;background:transparent;border:0;color:var(--text);border-radius:8px}.inspector-collapse-btn:hover{background:var(--blue-soft)}
 
 .beam-toggle-only{justify-content:flex-end}.beam-toggle-only>span{display:none}@media (max-width:900px){.plan-tools{grid-template-columns:1fr 1fr;align-items:end}.tool-group.grow{grid-column:1/-1}.toolbar-note{grid-column:1/-1}.beam-toggle-only .beam-toggle{width:100%}.add-main{min-width:0;width:100%}}
+
+
+/* --- V1.24 : mobile toolbar, grille 0 %, duplication objet --- */
+.object-duplicate{cursor:pointer}.object-duplicate-bg{fill:rgba(20,24,30,.88);stroke:#7ab0ff;stroke-width:1.5}.object-duplicate-icon{fill:none;stroke:#cfe2ff;stroke-width:1.6}.object-duplicate-plus{fill:none;stroke:#7ab0ff;stroke-width:1.8;stroke-linecap:round}.object-duplicate:hover .object-duplicate-bg{fill:#183253}
+@media (prefers-color-scheme:dark){.object-duplicate-bg{fill:rgba(18,21,26,.92)}}
+@media(max-width:900px){
+  .toolbar{padding:14px 14px 16px;gap:12px}
+  .tool-group.grow label{margin-bottom:2px}
+  .add-main{min-height:40px;font-size:15px;padding:10px 12px;gap:8px}
+  .add-main .plus{font-size:20px}
+  .plan-tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:stretch}
+  .plan-tools > .beam-global-control:first-child{order:1}
+  .plan-tools > .beam-global-control:last-child{order:2}
+  .plan-tools > label{order:3;grid-column:1/-1;gap:4px;font-size:11px;letter-spacing:0;text-transform:none}
+  .plan-tools > label select{font-size:13px;padding:9px 10px}
+  .grid-opacity-control{order:4;grid-column:1/-1}
+  .grid-opacity-head{font-size:11px;letter-spacing:0;text-transform:none;margin-bottom:4px}
+  .grid-opacity-head span{font-size:11px}
+  .beam-global-control{gap:0}
+  .beam-toggle{min-height:40px;font-size:13px;padding:10px 12px}
+  .beam-toggle-only{justify-content:stretch}
+  .beam-toggle-only .beam-toggle{width:100%}
+}

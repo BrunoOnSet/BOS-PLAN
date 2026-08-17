@@ -256,7 +256,7 @@ function ensureStateDefaults(){
   state.snap=[0,.1,.25,.5,1].includes(Number(state.snap))?Number(state.snap):.25;
   if(!['full','names','lightcrew','direction','hidden'].includes(state.labelsMode))state.labelsMode='full';
   if(state.beamsVisible===undefined)state.beamsVisible=true;
-  state.gridOpacity=clamp(Number(state.gridOpacity)||.5,.1,1);
+  state.gridOpacity=clamp(Number.isFinite(Number(state.gridOpacity))?Number(state.gridOpacity):.5,0,1);
   state.planName=state.planName||'Plan sans titre';
   state.folderId=state.folderId||library.folders[0]?.id||'folder_general';
   if(state.planId===undefined)state.planId=null;
@@ -268,13 +268,13 @@ function loadLibrary(){
 function persistLibrary(){localStorage.setItem(LIB_KEY,JSON.stringify(library))}
 function updateGridOpacity(){
   let raw=Number(state.gridOpacity);
-  const v=Number.isFinite(raw)?clamp(raw,.1,1):.5;
+  const v=Number.isFinite(raw)?clamp(raw,0,1):.5;
   state.gridOpacity=v;
   // Le curseur pilote maintenant à la fois l’opacité ET le contraste.
   // À 100 %, la grille devient volontairement très lisible pour un usage de plan technique.
   const dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const t=(v-.1)/.9;
-  const smallA=.12+t*.55, largeA=.20+t*.70;
+  const t=v;
+  const smallA=v===0?0:(.10+t*.57), largeA=v===0?0:(.18+t*.72);
   const smallStroke=dark?`rgba(102,116,132,${smallA.toFixed(3)})`:`rgba(68,84,104,${smallA.toFixed(3)})`;
   const largeStroke=dark?`rgba(74,88,104,${largeA.toFixed(3)})`:`rgba(44,58,78,${largeA.toFixed(3)})`;
   stage.querySelectorAll('.grid-small').forEach(n=>{n.style.opacity='1';n.setAttribute('opacity','1');n.style.stroke=smallStroke;n.setAttribute('stroke',smallStroke)});
@@ -538,6 +538,19 @@ function deleteObjectById(id){
   if(state.selected===id)state.selected=null;
   render();
 }
+function duplicateObjectById(id){
+  const src=state.objects.find(x=>x.id===id);if(!src)return;
+  const copy=deepClone(src);
+  copy.id=uid(src.kind||'obj');
+  copy.x=(Number(src.x)||0)+24;
+  copy.y=(Number(src.y)||0)+24;
+  copy.name=`${src.name||kindLabel(src)} copie`;
+  copy.locked=false;
+  state.objects.push(copy);
+  state.selected=copy.id;
+  if(copy.kind==='camera'&&!state.activePreviewCamera)state.activePreviewCamera=copy.id;
+  render();
+}
 function beamSliderMax(o){
   if(!o||o.kind!=='light')return 179;
   if(o.form==='nova-narrow')return 60;
@@ -561,7 +574,15 @@ function drawObject(o){
   }
   g.appendChild(svgEl('rect',{x:-hitW/2,y:-hitH/2,width:hitW,height:hitH,class:'hit'}));
   if(state.selected===o.id){
-    const trash=svgEl('g',{class:'object-trash',transform:`translate(0 ${-hitH/2-25}) rotate(${-o.rot})`,'data-id':o.id});
+    const toolsY=-hitH/2-25;
+    const dup=svgEl('g',{class:'object-duplicate',transform:`translate(${-18} ${toolsY}) rotate(${-o.rot})`,'data-id':o.id});
+    dup.appendChild(svgEl('circle',{cx:0,cy:0,r:13,class:'object-duplicate-bg'}));
+    dup.appendChild(svgEl('rect',{x:-5.5,y:-3.5,width:8.5,height:8.5,rx:1.8,class:'object-duplicate-icon'}));
+    dup.appendChild(svgEl('rect',{x:-2.5,y:-6.5,width:8.5,height:8.5,rx:1.8,class:'object-duplicate-icon'}));
+    dup.appendChild(svgEl('path',{d:'M 0 -2.5 L 0 2.5 M -2.5 0 L 2.5 0',class:'object-duplicate-plus'}));
+    dup.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();duplicateObjectById(o.id)});
+    g.appendChild(dup);
+    const trash=svgEl('g',{class:'object-trash',transform:`translate(${18} ${toolsY}) rotate(${-o.rot})`,'data-id':o.id});
     trash.appendChild(svgEl('circle',{cx:0,cy:0,r:13,class:'object-trash-bg'}));
     trash.appendChild(svgEl('path',{d:'M -5 -5 L 5 -5 M -3 -8 L 3 -8 M -4 -3 L -3 6 L 3 6 L 4 -3 M -1 -2 L -1 4 M 1 -2 L 1 4',class:'object-trash-icon'}));
     trash.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();deleteObjectById(o.id)});
@@ -904,7 +925,7 @@ function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();resetStageViewport();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;seed();render();renderLibraryList()}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.23',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.24',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
@@ -954,7 +975,7 @@ document.getElementById('exportBtn').onclick=exportPng;
 if(toggleSnapBtn)toggleSnapBtn.onclick=()=>{state.snap=Number(state.snap)>0?0:.25;updatePlanBadge();renderCanvas()};
 labelsModeSelect.onchange=()=>{state.labelsMode=labelsModeSelect.value;renderCanvas()};
 toggleBeamsBtn.onclick=()=>{state.beamsVisible=state.beamsVisible===false;updatePlanBadge();renderCanvas()};
-if(gridOpacityRange){gridOpacityRange.oninput=()=>{state.gridOpacity=clamp(Number(gridOpacityRange.value)/100,.1,1);updateGridOpacity();scheduleAutosave()};gridOpacityRange.onchange=()=>persistCurrent()}
+if(gridOpacityRange){gridOpacityRange.oninput=()=>{state.gridOpacity=clamp(Number(gridOpacityRange.value)/100,0,1);updateGridOpacity();scheduleAutosave()};gridOpacityRange.onchange=()=>persistCurrent()}
 
 function normalizeSceneObject(o){
   if(o.kind==='light')normalizeLightObject(o);

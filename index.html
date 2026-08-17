@@ -8,8 +8,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>BOS · Plan Feu</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.23" />
-  <link rel="stylesheet" href="styles.css?v=1.23" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.24" />
+  <link rel="stylesheet" href="styles.css?v=1.24" />
 </head>
 <body>
   <div class="app-shell">
@@ -50,14 +50,14 @@
           </label>
           <div class="grid-opacity-control">
             <div class="grid-opacity-head"><span>Opacité grille</span><output id="gridOpacityValue">50 %</output></div>
-            <input id="gridOpacityRange" type="range" min="10" max="100" step="5" value="50" aria-label="Opacité de la grille" />
+            <input id="gridOpacityRange" type="range" min="0" max="100" step="5" value="50" aria-label="Opacité de la grille" />
           </div>
           <div class="beam-global-control beam-toggle-only">
             <button id="toggleBeamsBtn" class="beam-toggle active" type="button" aria-pressed="true">Faisceau ON</button>
           </div>
         </div>
         <div class="toolbar-note">
-          <strong id="appVersionBadge">V1.23</strong>
+          <strong id="appVersionBadge">V1.24</strong>
           <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
         </div>
       </section>
@@ -240,6 +240,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.23"></script>
+  <script src="app.js?v=1.24"></script>
 </body>
 </html>
