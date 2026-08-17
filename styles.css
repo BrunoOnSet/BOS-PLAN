@@ -187,3 +187,18 @@ button{border:0;border-radius:12px;padding:10px 14px;font-weight:750}.ghost{back
 .preset-chip:hover{transform:translateY(-1px)}
 .field-inline input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 .field-inline input[type="number"]::-webkit-outer-spin-button,.field-inline input[type="number"]::-webkit-inner-spin-button{margin:0}
+
+/* --- V1.29 scale note below lighter --- */
+.scale-note-below{background:transparent !important;padding:0 !important;border-radius:0 !important;box-shadow:none !important;display:flex;flex-direction:row;gap:8px;justify-content:flex-end;align-items:center;color:rgba(255,255,255,.92)}
+.scale-note-below strong,.scale-note-below span{color:rgba(255,255,255,.92) !important;font-size:10px;font-weight:700}
+@media (max-width:900px){.scale-note-below strong,.scale-note-below span{font-size:9px}}
+
+/* --- V1.30 top plan name + thumbnails + lighter library --- */
+.top-left{display:flex;align-items:center;gap:18px;min-width:0;flex:1}
+.top-plan-name label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:800;color:var(--muted);min-width:240px}
+.top-plan-name input{width:min(320px,44vw);min-height:42px;font-size:15px;font-weight:800}
+.plan-row{grid-template-columns:110px minmax(0,1fr) auto;gap:12px;align-items:center}
+.plan-row-preview{width:110px}
+.plan-thumb{width:100%;aspect-ratio:1000/620;display:block;border-radius:10px;border:1px solid var(--line);background:#eef2f6;object-fit:cover}
+.plan-row-main{display:flex;flex-direction:column;justify-content:center;min-width:0}
+@media(max-width:900px){.topbar{flex-direction:column;align-items:stretch}.top-left{flex-direction:column;align-items:flex-start}.top-plan-name{width:100%}.top-plan-name label{width:100%;min-width:0}.top-plan-name input{width:100%}.top-actions{width:100%}.top-actions button{flex:1}.plan-row{grid-template-columns:88px 1fr}.plan-row-actions{grid-column:1/-1;padding-left:0}.plan-row-preview{width:88px}}

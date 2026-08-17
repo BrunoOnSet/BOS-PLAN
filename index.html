@@ -8,24 +8,34 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>BOS · Plan Feu</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.28" />
-  <link rel="stylesheet" href="styles.css?v=1.28" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.30" />
+  <link rel="stylesheet" href="styles.css?v=1.30" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand">
-        <div class="brand-badge">BOS</div>
-        <div>
-          <div class="brand-title">Plan Feu</div>
-          <div class="brand-subtitle">Bruno OnSet</div>
+      <div class="top-left">
+        <div class="brand">
+          <div class="brand-badge">BOS</div>
+          <div>
+            <div class="brand-title">Plan Feu</div>
+            <div class="brand-subtitle">Bruno OnSet</div>
+          </div>
+        </div>
+        <div class="top-plan-name">
+          <label>Nom du plan
+            <input id="topPlanNameInput" type="text" value="Plan 01" placeholder="Nom du plan">
+          </label>
         </div>
       </div>
       <div class="top-actions">
-        <button class="ghost" id="resetBtn">Réinitialiser</button>
+        <button class="ghost" id="importProjectBtn">Importer un projet</button>
+        <button class="ghost" id="shareProjectBtn">Partager une copie</button>
+        <button class="ghost" id="resetBtn">Créer un nouveau plan</button>
         <button class="ghost" id="libraryBtn">Mes plans</button>
         <button class="ghost" id="saveBtn">Sauver</button>
         <button class="primary" id="exportBtn">Exporter PNG</button>
+        <input id="importProjectInput" type="file" accept=".json,.bosplan.json,application/json" hidden>
       </div>
     </header>
 
@@ -62,7 +72,7 @@
             </div>
           </div>
           <div class="toolbar-note">
-            <strong id="appVersionBadge">V1.28</strong>
+            <strong id="appVersionBadge">V1.30</strong>
             <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
           </div>
         </div>
@@ -242,12 +252,12 @@
           <div class="choice-label">BIBLIOTHÈQUE</div>
           <p>Les plans sont stockés sur cet appareil et se mettent à jour automatiquement.</p>
         </div>
-        <div class="library-share-actions"><button class="ghost small-btn" id="importProjectBtn">Importer un projet</button><button class="ghost small-btn" id="shareProjectBtn">Partager une copie</button><input id="importProjectInput" type="file" accept=".json,.bosplan.json,application/json" hidden></div>
+        
       </div>
       <div id="planLibraryList" class="plan-library-list"></div>
     </div>
   </dialog>
 
-  <script src="app.js?v=1.28"></script>
+  <script src="app.js?v=1.30"></script>
 </body>
 </html>
