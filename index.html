@@ -50,8 +50,8 @@
             </select>
           </label>
           <div class="grid-opacity-control">
-            <div class="grid-opacity-head"><span>Opacité grille</span><output id="gridOpacityValue">45 %</output></div>
-            <input id="gridOpacityRange" type="range" min="10" max="100" step="5" value="45" aria-label="Opacité de la grille" />
+            <div class="grid-opacity-head"><span>Opacité grille</span><output id="gridOpacityValue">50 %</output></div>
+            <input id="gridOpacityRange" type="range" min="10" max="100" step="5" value="50" aria-label="Opacité de la grille" />
           </div>
           <div class="beam-global-control">
             <span>Faisceaux lumière</span>
@@ -59,7 +59,7 @@
           </div>
         </div>
         <div class="toolbar-note">
-          <strong>V1.2</strong>
+          <strong>V1.4</strong>
           <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
         </div>
       </section>
@@ -80,6 +80,10 @@
             </div>
           </div>
           <div class="stage-wrap" id="stageWrap">
+            <div class="stage-view-controls" aria-label="Navigation du plan">
+              <button id="resetViewBtn" type="button" class="stage-view-btn" title="Afficher tout le plan">Recentrer</button>
+              <span id="zoomReadout" class="stage-zoom-readout">100 %</span>
+            </div>
             <svg id="stage" viewBox="0 0 1000 620" aria-label="Plan feu vue du dessus">
               <defs>
                 <pattern id="smallGrid" width="25" height="25" patternUnits="userSpaceOnUse">
@@ -223,7 +227,7 @@
           <div class="choice-label">BIBLIOTHÈQUE</div>
           <p>Les plans sont stockés sur cet appareil et se mettent à jour automatiquement.</p>
         </div>
-        <button class="ghost small-btn" id="exportProjectBtn">Exporter le projet BOS</button>
+        <div class="library-share-actions"><button class="ghost small-btn" id="importProjectBtn">Importer un projet</button><button class="ghost small-btn" id="shareProjectBtn">Partager une copie</button><input id="importProjectInput" type="file" accept=".json,.bosplan.json,application/json" hidden></div>
       </div>
       <div id="planLibraryList" class="plan-library-list"></div>
     </div>

@@ -29,6 +29,12 @@ const libraryDialog=document.getElementById('libraryDialog');
 const planNameInput=document.getElementById('planNameInput');
 const folderSelect=document.getElementById('folderSelect');
 const planLibraryList=document.getElementById('planLibraryList');
+const shareProjectBtn=document.getElementById('shareProjectBtn');
+const importProjectBtn=document.getElementById('importProjectBtn');
+const importProjectInput=document.getElementById('importProjectInput');
+const stageWrap=document.getElementById('stageWrap');
+const resetViewBtn=document.getElementById('resetViewBtn');
+const zoomReadout=document.getElementById('zoomReadout');
 
 const cameras={
   'Sony FX3':{w:35.6,h:23.8},
@@ -146,9 +152,83 @@ const decorCatalog=[
 
 const CURRENT_KEY='bos-plan-feu-v06-current';
 const LIB_KEY='bos-plan-feu-library-v06';
-let state={objects:[],selected:null,activePreviewCamera:null,cameraModel:'Sony FX3',focal:50,snap:.25,labelsMode:'full',beamsVisible:true,gridOpacity:.45,planId:null,planName:'Plan sans titre',folderId:'folder_general'};
+let state={objects:[],selected:null,activePreviewCamera:null,cameraModel:'Sony FX3',focal:50,snap:.25,labelsMode:'full',beamsVisible:true,gridOpacity:.5,planId:null,planName:'Plan sans titre',folderId:'folder_general'};
 let library={folders:[{id:'folder_general',name:'Plans'}],plans:[]};
 let drag=null;
+
+// Navigation du plan : le canevas reste toujours ajusté au téléphone au chargement,
+// puis peut être déplacé et zoomé sans modifier les coordonnées réelles du plan.
+const STAGE_W=1000, STAGE_H=620, MAX_VIEW_ZOOM=4;
+let stageViewport={x:0,y:0,w:STAGE_W,h:STAGE_H};
+const activeTouchPointers=new Map();
+let panGesture=null, pinchGesture=null;
+function clampViewport(v){
+  const minW=STAGE_W/MAX_VIEW_ZOOM;
+  const w=clamp(Number(v.w)||STAGE_W,minW,STAGE_W),h=w*STAGE_H/STAGE_W;
+  const x=clamp(Number(v.x)||0,0,STAGE_W-w),y=clamp(Number(v.y)||0,0,STAGE_H-h);
+  return {x,y,w,h};
+}
+function applyStageViewport(){
+  stageViewport=clampViewport(stageViewport);
+  stage.setAttribute('viewBox',`${stageViewport.x} ${stageViewport.y} ${stageViewport.w} ${stageViewport.h}`);
+  if(zoomReadout)zoomReadout.textContent=`${Math.round(STAGE_W/stageViewport.w*100)} %`;
+}
+function resetStageViewport(){stageViewport={x:0,y:0,w:STAGE_W,h:STAGE_H};applyStageViewport()}
+function stagePointFromClient(clientX,clientY){
+  const r=stage.getBoundingClientRect();
+  if(!r.width||!r.height)return {x:stageViewport.x,y:stageViewport.y};
+  return {x:stageViewport.x+(clientX-r.left)/r.width*stageViewport.w,y:stageViewport.y+(clientY-r.top)/r.height*stageViewport.h};
+}
+function viewportFromPinch(start,midX,midY,distance){
+  const ratio=Math.max(.01,distance/start.distance);
+  const newW=clamp(start.viewport.w/ratio,STAGE_W/MAX_VIEW_ZOOM,STAGE_W),newH=newW*STAGE_H/STAGE_W;
+  const r=stage.getBoundingClientRect(),rx=clamp((midX-r.left)/Math.max(1,r.width),0,1),ry=clamp((midY-r.top)/Math.max(1,r.height),0,1);
+  return clampViewport({x:start.anchor.x-rx*newW,y:start.anchor.y-ry*newH,w:newW,h:newH});
+}
+function beginPinchIfPossible(){
+  if(activeTouchPointers.size<2)return false;
+  const pts=[...activeTouchPointers.values()].slice(0,2),a=pts[0],b=pts[1],mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+  const distance=Math.hypot(a.x-b.x,a.y-b.y);
+  pinchGesture={distance:Math.max(1,distance),viewport:{...stageViewport},anchor:stagePointFromClient(mx,my)};
+  panGesture=null;
+  drag=null;
+  return true;
+}
+function handleViewportPointerDown(e){
+  if(e.pointerType!=='touch')return;
+  activeTouchPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(activeTouchPointers.size>=2){beginPinchIfPossible();e.preventDefault();return}
+  const onObject=!!e.target.closest?.('.object');
+  if(!onObject)panGesture={pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,viewport:{...stageViewport}};
+}
+function handleViewportPointerMove(e){
+  if(e.pointerType!=='touch'||!activeTouchPointers.has(e.pointerId))return;
+  activeTouchPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(activeTouchPointers.size>=2){
+    if(!pinchGesture)beginPinchIfPossible();
+    const pts=[...activeTouchPointers.values()].slice(0,2),a=pts[0],b=pts[1],mx=(a.x+b.x)/2,my=(a.y+b.y)/2,d=Math.hypot(a.x-b.x,a.y-b.y);
+    stageViewport=viewportFromPinch(pinchGesture,mx,my,d);applyStageViewport();e.preventDefault();return;
+  }
+  if(panGesture&&panGesture.pointerId===e.pointerId){
+    const r=stage.getBoundingClientRect(),dx=(e.clientX-panGesture.startX)/Math.max(1,r.width)*panGesture.viewport.w,dy=(e.clientY-panGesture.startY)/Math.max(1,r.height)*panGesture.viewport.h;
+    stageViewport=clampViewport({x:panGesture.viewport.x-dx,y:panGesture.viewport.y-dy,w:panGesture.viewport.w,h:panGesture.viewport.h});
+    applyStageViewport();e.preventDefault();
+  }
+}
+function handleViewportPointerEnd(e){
+  if(e.pointerType!=='touch')return;
+  activeTouchPointers.delete(e.pointerId);
+  if(activeTouchPointers.size<2)pinchGesture=null;
+  if(activeTouchPointers.size===1){
+    const [id,p]=[...activeTouchPointers.entries()][0];
+    panGesture={pointerId:id,startX:p.x,startY:p.y,viewport:{...stageViewport}};
+  }else if(activeTouchPointers.size===0)panGesture=null;
+}
+stage.addEventListener('pointerdown',handleViewportPointerDown,{capture:true});
+stage.addEventListener('pointermove',handleViewportPointerMove,{capture:true});
+stage.addEventListener('pointerup',handleViewportPointerEnd,{capture:true});
+stage.addEventListener('pointercancel',handleViewportPointerEnd,{capture:true});
+if(resetViewBtn)resetViewBtn.addEventListener('click',resetStageViewport);
 let replaceLightId=null;
 let catalogBrand='Amaran';
 let catalogFamily='';
@@ -170,7 +250,7 @@ function ensureStateDefaults(){
   state.snap=[0,.1,.25,.5,1].includes(Number(state.snap))?Number(state.snap):.25;
   if(!['full','names','hidden'].includes(state.labelsMode))state.labelsMode='full';
   if(state.beamsVisible===undefined)state.beamsVisible=true;
-  state.gridOpacity=clamp(Number(state.gridOpacity)||.45,.1,1);
+  state.gridOpacity=clamp(Number(state.gridOpacity)||.5,.1,1);
   state.planName=state.planName||'Plan sans titre';
   state.folderId=state.folderId||library.folders[0]?.id||'folder_general';
   if(state.planId===undefined)state.planId=null;
@@ -180,7 +260,22 @@ function loadLibrary(){
   if(!library.folders.length)library.folders=[{id:'folder_general',name:'Plans'}];
 }
 function persistLibrary(){localStorage.setItem(LIB_KEY,JSON.stringify(library))}
-function updateGridOpacity(){let raw=Number(state.gridOpacity);const v=Number.isFinite(raw)?clamp(raw,.1,1):.45;state.gridOpacity=v;const small=clamp(.04+v*.72,.08,.76),large=clamp(.12+v*.88,.20,1);stage.querySelectorAll('.grid-small').forEach(n=>{n.style.opacity=small.toFixed(2);n.setAttribute('opacity',small.toFixed(2))});stage.querySelectorAll('.grid-large').forEach(n=>{n.style.opacity=large.toFixed(2);n.setAttribute('opacity',large.toFixed(2))});stage.style.setProperty('--grid-small-opacity',small.toFixed(2));stage.style.setProperty('--grid-large-opacity',large.toFixed(2));if(gridOpacityRange)gridOpacityRange.value=String(Math.round(v*100));if(gridOpacityValue)gridOpacityValue.textContent=`${Math.round(v*100)} %`}
+function updateGridOpacity(){
+  let raw=Number(state.gridOpacity);
+  const v=Number.isFinite(raw)?clamp(raw,.1,1):.5;
+  state.gridOpacity=v;
+  // Le curseur pilote maintenant à la fois l’opacité ET le contraste.
+  // À 100 %, la grille devient volontairement très lisible pour un usage de plan technique.
+  const dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const t=(v-.1)/.9;
+  const smallA=.07+t*.48, largeA=.13+t*.67;
+  const smallStroke=dark?`rgba(184,198,218,${smallA.toFixed(3)})`:`rgba(45,62,86,${smallA.toFixed(3)})`;
+  const largeStroke=dark?`rgba(216,226,240,${largeA.toFixed(3)})`:`rgba(27,44,68,${largeA.toFixed(3)})`;
+  stage.querySelectorAll('.grid-small').forEach(n=>{n.style.opacity='1';n.setAttribute('opacity','1');n.style.stroke=smallStroke;n.setAttribute('stroke',smallStroke)});
+  stage.querySelectorAll('.grid-large').forEach(n=>{n.style.opacity='1';n.setAttribute('opacity','1');n.style.stroke=largeStroke;n.setAttribute('stroke',largeStroke)});
+  if(gridOpacityRange)gridOpacityRange.value=String(Math.round(v*100));
+  if(gridOpacityValue)gridOpacityValue.textContent=`${Math.round(v*100)} %`;
+}
 function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||'Plan sans titre'} · autosauvegarde`;if(snapSelect)snapSelect.value=String(Number(state.snap)||0);if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(toggleBeamsBtn){const on=state.beamsVisible!==false;toggleBeamsBtn.classList.toggle('active',on);toggleBeamsBtn.textContent=on?'Faisceaux ON':'Faisceaux OFF';toggleBeamsBtn.setAttribute('aria-pressed',String(on))}updateGridOpacity()}
 function snapshotState(){const copy=deepClone(state);copy.selected=null;return copy}
 function persistCurrent(){
@@ -261,9 +356,20 @@ function lightColor(o,alpha=.14){
   const [r,g,b]=kelvinToRgb(o.cct);return {fill:`rgba(${r},${g},${b},${alpha})`,stroke:`rgba(${r},${g},${b},${Math.min(.72,alpha*4)})`};
 }
 function lightColorText(o){normalizeLightObject(o);return o.colorMode==='hsi'?`H ${Math.round(o.hue)}° · S ${Math.round(o.saturation)}%`:`${Math.round(o.cct)} K`}
+function fixtureBeamOffset(o){
+  // Les panneaux et mats sont vus du dessus par leur longueur : leur face émettrice est perpendiculaire à cette longueur.
+  return ['panel','panel-wide','nova','nova-narrow','mat'].includes(o?.form)?90:0;
+}
+function displayBeamAngle(o){
+  const raw=clamp(Number(o.beam)||55,4,179);
+  // Le cône du plan reste un repère schématique. Les sources surfaciques très ouvertes deviennent sinon illisibles en vue du dessus.
+  if(o?.form==='nova-narrow')return raw;
+  if(['mat','panel','panel-wide','nova'].includes(o?.form))return Math.min(raw,68);
+  return raw;
+}
 function drawLightBeam(o){
-  const beam=clamp(Number(o.beam)||55,4,179),len=310,half=Math.tan(rad(beam/2))*len,c=lightColor(o,.13);
-  beamsLayer.appendChild(svgEl('polygon',{points:`0,0 ${len},${-half} ${len},${half}`,class:'beam',style:`fill:${c.fill};stroke:${c.stroke}`,transform:`translate(${o.x} ${o.y}) rotate(${o.rot})`}));
+  const beam=displayBeamAngle(o),isArea=['mat','panel','panel-wide','nova','nova-narrow'].includes(o.form),len=isArea?255:310,half=Math.tan(rad(beam/2))*len,c=lightColor(o,.13),beamRot=o.rot+fixtureBeamOffset(o);
+  beamsLayer.appendChild(svgEl('polygon',{points:`0,0 ${len},${-half} ${len},${half}`,class:'beam',style:`fill:${c.fill};stroke:${c.stroke}`,transform:`translate(${o.x} ${o.y}) rotate(${beamRot})`}));
 }
 
 function supportsSoftbox(o){
@@ -388,24 +494,25 @@ function drawObject(o){
     g.appendChild(label);
   }
   if(state.selected===o.id&&!o.locked){
-    const gizmo=svgEl('g',{class:'rotation-gizmo'});gizmo.appendChild(svgEl('line',{x1:40,y1:0,x2:65,y2:0,class:'rotation-stem'}));const handle=svgEl('circle',{cx:74,cy:0,r:12,class:'rotation-handle','data-id':o.id});gizmo.appendChild(handle);const arrow=svgEl('path',{d:'M 69 -4 A 6 6 0 1 1 69 4 M 69 4 L 66 1 M 69 4 L 72 1',class:'rotation-icon','data-id':o.id});gizmo.appendChild(arrow);const angle=svgEl('text',{x:74,y:-19,class:'rotation-angle','text-anchor':'middle'});angle.textContent=`${Math.round(o.rot)}°`;gizmo.appendChild(angle);handle.addEventListener('pointerdown',startRotate);arrow.addEventListener('pointerdown',startRotate);gizmo.addEventListener('pointerdown',e=>e.stopPropagation());g.appendChild(gizmo);
+    const beamOffset=o.kind==='light'?fixtureBeamOffset(o):0;const gizmo=svgEl('g',{class:'rotation-gizmo',transform:beamOffset?`rotate(${beamOffset})`:''});gizmo.appendChild(svgEl('line',{x1:40,y1:0,x2:65,y2:0,class:'rotation-stem'}));const handle=svgEl('circle',{cx:74,cy:0,r:12,class:'rotation-handle','data-id':o.id});gizmo.appendChild(handle);const arrow=svgEl('path',{d:'M 69 -4 A 6 6 0 1 1 69 4 M 69 4 L 66 1 M 69 4 L 72 1',class:'rotation-icon','data-id':o.id});gizmo.appendChild(arrow);const angle=svgEl('text',{x:74,y:-19,class:'rotation-angle','text-anchor':'middle'});let shownAngle=o.rot+beamOffset;while(shownAngle>180)shownAngle-=360;while(shownAngle<=-180)shownAngle+=360;angle.textContent=`${Math.round(shownAngle)}°`;gizmo.appendChild(angle);handle.addEventListener('pointerdown',startRotate);arrow.addEventListener('pointerdown',startRotate);gizmo.addEventListener('pointerdown',e=>e.stopPropagation());g.appendChild(gizmo);
   }
   g.addEventListener('pointerdown',startDrag);objectsLayer.appendChild(g);
 }
 
 function pointerToStage(e){const pt=stage.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;return pt.matrixTransform(stage.getScreenCTM().inverse())}
 function startDrag(e){
+  if(e.pointerType==='touch'&&activeTouchPointers.size>1)return;
   e.preventDefault();e.stopPropagation();const id=e.currentTarget.dataset.id,o=state.objects.find(x=>x.id===id);if(!o)return;
   if(state.selected!==id){state.selected=id;renderInspector()}
   if(o.kind==='camera'){state.activePreviewCamera=o.id;renderPreview()}
   if(o.locked){renderInspector();return}
   const p=pointerToStage(e);drag={mode:'move',id,dx:p.x-o.x,dy:p.y-o.y,pointerId:e.pointerId};stage.setPointerCapture?.(e.pointerId);
 }
-function startRotate(e){e.preventDefault();e.stopPropagation();const id=e.currentTarget.dataset.id||e.currentTarget.closest?.('[data-id]')?.dataset.id,o=state.objects.find(x=>x.id===id);if(!o||o.locked)return;state.selected=id;if(o.kind==='camera')state.activePreviewCamera=o.id;drag={mode:'rotate',id,pointerId:e.pointerId};stage.setPointerCapture?.(e.pointerId)}
+function startRotate(e){if(e.pointerType==='touch'&&activeTouchPointers.size>1)return;e.preventDefault();e.stopPropagation();const id=e.currentTarget.dataset.id||e.currentTarget.closest?.('[data-id]')?.dataset.id,o=state.objects.find(x=>x.id===id);if(!o||o.locked)return;state.selected=id;if(o.kind==='camera')state.activePreviewCamera=o.id;drag={mode:'rotate',id,pointerId:e.pointerId,rotateOffset:o.kind==='light'?fixtureBeamOffset(o):0};stage.setPointerCapture?.(e.pointerId)}
 stage.addEventListener('pointermove',e=>{
   if(!drag)return;const o=state.objects.find(x=>x.id===drag.id);if(!o)return;const p=pointerToStage(e);
   if(drag.mode==='rotate'){
-    o.rot=deg(Math.atan2(p.y-o.y,p.x-o.x));if(o.rot>180)o.rot-=360;if(o.rot<=-180)o.rot+=360;
+    o.rot=deg(Math.atan2(p.y-o.y,p.x-o.x))-(drag.rotateOffset||0);if(o.rot>180)o.rot-=360;if(o.rot<=-180)o.rot+=360;
   } else {
     const targetX=clamp(snapValue(p.x-drag.dx),35,965),targetY=clamp(snapValue(p.y-drag.dy),35,585);
     o.x=targetX;o.y=targetY;
@@ -652,9 +759,10 @@ function renderLibraryList(){
     if(!plans.length){const empty=document.createElement('div');empty.className='folder-empty';empty.textContent='Aucun plan dans ce dossier.';box.appendChild(empty)}
     plans.forEach(rec=>{
       const row=document.createElement('div');row.className='plan-row';
-      row.innerHTML=`<div class="plan-row-main"><strong>${esc(rec.name)}</strong><small>${formatSavedDate(rec.updatedAt)}${rec.id===state.planId?' · plan ouvert':''}</small></div><div class="plan-row-actions"><button class="primary-mini" data-act="open">Ouvrir</button><button data-act="duplicate">Dupliquer</button><button class="danger-mini" data-act="delete">Supprimer</button></div>`;
+      row.innerHTML=`<div class="plan-row-main"><strong>${esc(rec.name)}</strong><small>${formatSavedDate(rec.updatedAt)}${rec.id===state.planId?' · plan ouvert':''}</small></div><div class="plan-row-actions"><button class="primary-mini" data-act="open">Ouvrir</button><button data-act="duplicate">Dupliquer</button><button data-act="share">Partager</button><button class="danger-mini" data-act="delete">Supprimer</button></div>`;
       row.querySelector('[data-act="open"]').onclick=()=>openLibraryPlan(rec.id);
       row.querySelector('[data-act="duplicate"]').onclick=()=>duplicateLibraryPlan(rec.id);
+      row.querySelector('[data-act="share"]').onclick=()=>shareProjectState(rec.state,rec.name);
       row.querySelector('[data-act="delete"]').onclick=()=>deleteLibraryPlan(rec.id);
       box.appendChild(row);
     });planLibraryList.appendChild(box);
@@ -669,11 +777,30 @@ function savePlanToLibrary(){
   let rec=library.plans.find(p=>p.id===state.planId);if(!rec){rec={id:state.planId};library.plans.push(rec)}
   rec.name=name;rec.folderId=folderId;rec.updatedAt=Date.now();rec.state=snapshotState();persistLibrary();persistCurrent();renderLibraryList();flash('Plan enregistré');
 }
-function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;state=deepClone(rec.state);state.planId=rec.id;state.planName=rec.name;state.folderId=rec.folderId;ensureStateDefaults();state.objects.forEach(normalizeSceneObject);migrateOpeningBindings();state.selected=null;if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null;persistCurrent();render();closeLibraryDialog()}
+function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;resetStageViewport();state=deepClone(rec.state);state.planId=rec.id;state.planName=rec.name;state.folderId=rec.folderId;ensureStateDefaults();state.objects.forEach(normalizeSceneObject);migrateOpeningBindings();state.selected=null;if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null;persistCurrent();render();closeLibraryDialog()}
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=`${rec.name} copie`;copy.updatedAt=Date.now();copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
-function newPlan(){persistCurrent();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.45;seed();render();renderLibraryList()}
-function exportProject(){const payload={format:'BOS_PLAN_FEU',version:'1.2',exportedAt:new Date().toISOString(),plan:snapshotState()};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`${safeName(state.planName)}.bosplan.json`)}
+function newPlan(){persistCurrent();resetStageViewport();const folder=folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans titre';state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;seed();render();renderLibraryList()}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.4',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
+async function shareProjectState(planState=snapshotState(),name=state.planName){
+  const file=projectFile(planState,name);
+  try{
+    if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){await navigator.share({title:`BOS · Plan Feu — ${name}`,text:'Copie modifiable du plan feu BOS.',files:[file]});return}
+  }catch(e){if(e?.name==='AbortError')return;console.warn('Partage BOS',e)}
+  downloadBlob(file, file.name);
+  alert('Le partage direct de fichiers n’est pas disponible sur ce navigateur. La copie modifiable a été téléchargée : tu peux l’envoyer par AirDrop, Mail, Messages, etc.');
+}
+async function importProjectFile(file){
+  if(!file)return;
+  try{
+    const raw=JSON.parse(await file.text()),incoming=raw?.format==='BOS_PLAN_FEU'?raw.plan:raw;
+    if(!incoming||!Array.isArray(incoming.objects))throw new Error('Format invalide');
+    resetStageViewport();state=deepClone(incoming);state.planId=null;state.planName=state.planName||file.name.replace(/\.bosplan\.json$|\.json$/i,'')||'Plan reçu';state.folderId=library.folders[0]?.id||'folder_general';
+    ensureStateDefaults();state.objects.forEach(normalizeSceneObject);migrateOpeningBindings();state.selected=null;if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null;
+    persistCurrent();render();closeLibraryDialog();flash('Projet importé');
+  }catch(e){console.warn(e);alert('Ce fichier ne semble pas être un projet BOS Plan Feu valide.')}
+}
 
 document.getElementById('libraryBtn').onclick=openLibraryDialog;
 document.getElementById('closeLibraryBtn').onclick=closeLibraryDialog;
@@ -681,9 +808,11 @@ libraryDialog.addEventListener('click',e=>{if(e.target===libraryDialog)closeLibr
 document.getElementById('newFolderBtn').onclick=()=>{const name=prompt('Nom du nouveau dossier :');if(!name?.trim())return;const f={id:uid('folder'),name:name.trim()};library.folders.push(f);persistLibrary();state.folderId=f.id;renderLibraryList();folderSelect.value=f.id};
 document.getElementById('newPlanBtn').onclick=newPlan;
 document.getElementById('saveToLibraryBtn').onclick=savePlanToLibrary;
-document.getElementById('exportProjectBtn').onclick=exportProject;
+if(shareProjectBtn)shareProjectBtn.onclick=()=>shareProjectState();
+if(importProjectBtn)importProjectBtn.onclick=()=>importProjectInput?.click();
+if(importProjectInput)importProjectInput.onchange=async()=>{const f=importProjectInput.files?.[0];importProjectInput.value='';await importProjectFile(f)};
 document.getElementById('saveBtn').onclick=()=>{if(!state.planId){openLibraryDialog();planNameInput.focus()}else{persistCurrent();flash('Plan sauvé')}};
-document.getElementById('resetBtn').onclick=()=>{if(confirm('Réinitialiser le contenu de ce plan ?')){const meta={planId:state.planId,planName:state.planName,folderId:state.folderId,snap:state.snap,labelsMode:state.labelsMode,gridOpacity:state.gridOpacity};seed();Object.assign(state,meta);render()}};
+document.getElementById('resetBtn').onclick=()=>{if(confirm('Réinitialiser le contenu de ce plan ?')){resetStageViewport();const meta={planId:state.planId,planName:state.planName,folderId:state.folderId,snap:state.snap,labelsMode:state.labelsMode,gridOpacity:state.gridOpacity};seed();Object.assign(state,meta);render()}};
 function flash(txt){const b=document.getElementById('saveBtn'),old=b.textContent;b.textContent='✓ '+txt;setTimeout(()=>b.textContent=old,1200)}
 function inlineSvgStyles(original,clone){
   const props=['fill','stroke','stroke-width','stroke-dasharray','stroke-linecap','stroke-linejoin','opacity','font-family','font-size','font-weight','letter-spacing','paint-order','color'];
@@ -718,6 +847,6 @@ function load(){
     const saved=raw&&JSON.parse(raw);
     if(saved&&Array.isArray(saved.objects)){state=saved;if(!state.planName)state.planName=localStorage.getItem(CURRENT_KEY)?'Plan sans titre':'Plan importé V0.5';state.objects.forEach(normalizeSceneObject);migrateOpeningBindings();if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null}else seed();
   }catch{seed()}
-  ensureStateDefaults();if(!cameras[state.cameraModel])state.cameraModel='Sony FX3';state.focal=Number(state.focal)||50;updatePlanBadge();render();
+  ensureStateDefaults();if(!cameras[state.cameraModel])state.cameraModel='Sony FX3';state.focal=Number(state.focal)||50;resetStageViewport();updatePlanBadge();render();
 }
 window.addEventListener('resize',renderPreview);load();
