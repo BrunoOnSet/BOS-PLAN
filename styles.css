@@ -213,4 +213,6 @@ button{border:0;border-radius:12px;padding:10px 14px;font-weight:750}.ghost{back
 
 .preview-face-nose-fill{fill:#eef2f7;stroke:none;opacity:.96}
 
-.preview-face-nose-solid{fill:#eef2f7;stroke:#1f2430;stroke-width:1.8;stroke-linejoin:round;opacity:.98}
+.preview-face-nose-solid{fill:#111;stroke:none;opacity:.98}
+
+[hidden]{display:none!important}
