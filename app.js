@@ -1,4 +1,4 @@
-const APP_VERSION='V1.46';
+const APP_VERSION='V1.47';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -1073,7 +1073,7 @@ const EQUIPMENT_ADD_CATALOG={
     ['diff-frame','Cadre de diffusion'],['diffusion','Diffusion'],['reflector','Réflecteur'],['borniol','Borniol'],['negative','Negative fill'],['cstand','C-Stand'],['combo','Pied combo'],['boom','Girafe / boom'],['sandbag','Sac de lest'],['clamp','Pince'],['superclamp','Super Clamp'],['magic-arm','Bras magique'],['spigot','Rotule / spigot']
   ],
   extra:[
-    ['extension-16a','Rallonge 16 A'],['extension','Rallonge secteur'],['reel','Enrouleur'],['power-strip','Triplette / multiprise'],['adapter','Adaptateur secteur'],['gaffer','Gaffer'],['cinefoil','Cinefoil / Blackwrap'],['paper-tape','Paper tape'],['velcro','Velcro / serre-câbles'],['safety','Câble de sécurité'],['clothespins','Pinces à linge'],['marker','Marqueur'],['aa','Piles AA / AAA'],['lens-cloth','Chiffon optique'],['wipes','Lingettes optiques']
+    ['extension-16a','Prolong'],['extension','Rallonge secteur'],['reel','Enrouleur'],['power-strip','Triplette / multiprise'],['adapter','Adaptateur secteur'],['gaffer','Gaffer'],['cinefoil','Cinefoil / Blackwrap'],['paper-tape','Paper tape'],['velcro','Velcro / serre-câbles'],['safety','Câble de sécurité / élingue'],['clothespins','Pinces à linge'],['marker','Marqueur'],['aa','Piles AA'],['aaa','Piles AAA']
   ]
 };
 let equipmentAddType='camera';
@@ -1087,6 +1087,8 @@ function ensureEquipmentSheet(){
   if(!Array.isArray(s.customCategories))s.customCategories=[];
   if(!Array.isArray(s.manualItems))s.manualItems=[];
   if(!s.layout||typeof s.layout!=='object')s.layout={};
+  if(!s.enabledCategories||typeof s.enabledCategories!=='object')s.enabledCategories={};
+  equipmentCategoriesAllRaw(s).forEach(c=>{if(typeof s.enabledCategories[c.id]!=='boolean')s.enabledCategories[c.id]=true});
   return s;
 }
 function equipmentModifierText(o){
@@ -1103,7 +1105,8 @@ function autoEquipmentItems(){
   state.objects.filter(o=>o.kind==='accessory').forEach(o=>items.push({id:`auto:${o.id}`,source:'auto',defaultCategory:'accessory',label:o.name,detail:`${Number(o.width||0).toFixed(1)} × ${Number(o.zHeight||o.height||0).toFixed(1)} m`}));
   return items;
 }
-function equipmentCategoriesAll(){const s=ensureEquipmentSheet();return [...EQUIPMENT_BASE_CATEGORIES,...s.customCategories]}
+function equipmentCategoriesAllRaw(s){return [...EQUIPMENT_BASE_CATEGORIES,...(s?.customCategories||[])]}
+function equipmentCategoriesAll(){const s=ensureEquipmentSheet();return equipmentCategoriesAllRaw(s)}
 function equipmentItemsAll(){const s=ensureEquipmentSheet();return [...autoEquipmentItems(),...s.manualItems.map(i=>({...i,source:'manual'}))]}
 function syncEquipmentSheet(){
   const s=ensureEquipmentSheet(),cats=equipmentCategoriesAll(),validCats=new Set(cats.map(c=>c.id)),items=equipmentItemsAll(),validItems=new Set(items.map(i=>i.id));
@@ -1139,7 +1142,23 @@ function addCatalogEquipment(key,label,type){
   let detail='';
   if(key==='gaffer'){const color=prompt('Couleur du gaffer','Noir');if(color===null)return;detail=`Couleur : ${(color||'Noir').trim()}`}
   if(key==='paper-tape'){const color=prompt('Couleur du paper tape','Blanc');if(color===null)return;detail=`Couleur : ${(color||'Blanc').trim()}`}
+  if(key==='marker'){const color=prompt('Couleur du marqueur','Noir');if(color===null)return;detail=`Couleur : ${(color||'Noir').trim()}`}
+  if(['light-stand','cstand','combo'].includes(key)){
+    const typeLabel=prompt('Type / précision du pied (ex. léger, Wind-up, C-Stand, Baby…)','');
+    if(typeLabel===null)return;
+    const material=prompt('Matière / précision supplémentaire (ex. métal, carbone…)','');
+    if(material===null)return;
+    detail=[typeLabel.trim(),material.trim()].filter(Boolean).join(' · ');
+  }
   addManualEquipment(label,type,detail);
+}
+function editManualEquipmentDetail(id){
+  const s=ensureEquipmentSheet(),item=s.manualItems.find(i=>i.id===id);if(!item)return;
+  const detail=prompt(`Précision pour « ${item.label} »`,item.detail||'');if(detail===null)return;
+  item.detail=detail.trim();persistCurrent();renderEquipmentDialog();
+}
+function toggleEquipmentCategory(id){
+  const s=ensureEquipmentSheet();s.enabledCategories[id]=!(s.enabledCategories[id]!==false);persistCurrent();renderEquipmentDialog();
 }
 function renderEquipmentAddCatalog(){
   if(!equipmentAddTabs||!equipmentAddCatalog)return;
@@ -1158,14 +1177,16 @@ function renderEquipmentCategories(){
   syncEquipmentSheet();const s=ensureEquipmentSheet(),items=equipmentItemsAll();if(!equipmentCategories)return;
   equipmentCategories.innerHTML=equipmentCategoriesAll().map(cat=>{
     const catItems=items.filter(i=>s.layout[i.id]?.categoryId===cat.id).sort((a,b)=>s.layout[a.id].order-s.layout[b.id].order);
-    const custom=s.customCategories.some(c=>c.id===cat.id);
-    return `<section class="equipment-category" data-eq-category="${cat.id}"><div class="equipment-category-head"><strong>${esc(cat.name)}</strong><div class="equipment-category-actions">${custom?`<button type="button" class="equipment-category-remove" data-remove-category="${cat.id}">Supprimer</button>`:''}</div></div><div class="equipment-dropzone" data-drop-category="${cat.id}">${catItems.length?catItems.map(i=>`<div class="equipment-item" draggable="true" data-eq-item="${i.id}"><span class="equipment-drag-handle">⋮⋮</span><div class="equipment-item-copy"><strong>${esc(i.label)}</strong>${i.detail?`<small>${esc(i.detail)}</small>`:''}</div><span class="equipment-item-source">${i.source==='auto'?'plan':'ajouté'}</span>${i.source==='manual'?`<button class="equipment-item-remove" type="button" title="Supprimer">×</button>`:'<span></span>'}</div>`).join(''):`<div class="equipment-empty">Dépose du matériel ici</div>`}</div></section>`
+    const custom=s.customCategories.some(c=>c.id===cat.id),enabled=s.enabledCategories[cat.id]!==false;
+    return `<section class="equipment-category ${enabled?'':'disabled'}" data-eq-category="${cat.id}"><div class="equipment-category-head"><strong>${esc(cat.name)}</strong><div class="equipment-category-actions"><button type="button" class="equipment-category-toggle ${enabled?'active':''}" data-toggle-category="${cat.id}">${enabled?'ON':'OFF'}</button>${custom?`<button type="button" class="equipment-category-remove" data-remove-category="${cat.id}">Supprimer</button>`:''}</div></div><div class="equipment-dropzone" data-drop-category="${cat.id}">${catItems.length?catItems.map(i=>`<div class="equipment-item" draggable="true" data-eq-item="${i.id}"><span class="equipment-drag-handle">⋮⋮</span><div class="equipment-item-copy"><strong>${esc(i.label)}</strong>${i.detail?`<small>${esc(i.detail)}</small>`:''}</div><span class="equipment-item-source">${i.source==='auto'?'plan':'ajouté'}</span>${i.source==='manual'?`<div class="equipment-item-actions"><button class="equipment-item-edit" type="button" title="Préciser">✎</button><button class="equipment-item-remove" type="button" title="Supprimer">×</button></div>`:'<span></span>'}</div>`).join(''):`<div class="equipment-empty">Dépose du matériel ici</div>`}</div></section>`
   }).join('');
-  equipmentCategories.querySelectorAll('[data-remove-category]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.removeCategory,cat=s.customCategories.find(c=>c.id===id);if(!cat||!confirm(`Supprimer la catégorie « ${cat.name} » ? Les éléments seront déplacés dans Petit matériel & consommables.`))return;s.customCategories=s.customCategories.filter(c=>c.id!==id);Object.values(s.layout).forEach(l=>{if(l.categoryId===id)l.categoryId='extra'});persistCurrent();renderEquipmentDialog()});
+  equipmentCategories.querySelectorAll('[data-toggle-category]').forEach(btn=>btn.onclick=()=>toggleEquipmentCategory(btn.dataset.toggleCategory));
+  equipmentCategories.querySelectorAll('[data-remove-category]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.removeCategory,cat=s.customCategories.find(c=>c.id===id);if(!cat||!confirm(`Supprimer la catégorie « ${cat.name} » ? Les éléments seront déplacés dans Petit matériel & consommables.`))return;s.customCategories=s.customCategories.filter(c=>c.id!==id);delete s.enabledCategories[id];Object.values(s.layout).forEach(l=>{if(l.categoryId===id)l.categoryId='extra'});persistCurrent();renderEquipmentDialog()});
   equipmentCategories.querySelectorAll('.equipment-dropzone').forEach(zone=>{zone.ondragover=e=>{e.preventDefault();zone.classList.add('drag-over')};zone.ondragleave=()=>zone.classList.remove('drag-over');zone.ondrop=e=>{e.preventDefault();zone.classList.remove('drag-over');if(equipmentDragId)moveEquipmentItem(equipmentDragId,zone.dataset.dropCategory)}});
   equipmentCategories.querySelectorAll('.equipment-item').forEach(row=>{
     row.ondragstart=e=>{equipmentDragId=row.dataset.eqItem;row.classList.add('dragging');e.dataTransfer.effectAllowed='move'};row.ondragend=()=>{equipmentDragId=null;row.classList.remove('dragging')};
     row.ondragover=e=>{e.preventDefault()};row.ondrop=e=>{e.preventDefault();e.stopPropagation();if(equipmentDragId&&equipmentDragId!==row.dataset.eqItem){const cat=row.closest('[data-eq-category]').dataset.eqCategory;moveEquipmentItem(equipmentDragId,cat,row.dataset.eqItem)}};
+    const edit=row.querySelector('.equipment-item-edit');if(edit)edit.onclick=()=>editManualEquipmentDetail(row.dataset.eqItem);
     const rm=row.querySelector('.equipment-item-remove');if(rm)rm.onclick=()=>removeManualEquipment(row.dataset.eqItem);
   });
 }
@@ -1179,7 +1200,7 @@ function closeEquipmentDialog(){if(equipmentDialog?.open&&typeof equipmentDialog
 function buildEquipmentPrintArea(){
   syncEquipmentSheet();const s=ensureEquipmentSheet(),items=equipmentItemsAll();
   const contacts=s.contacts.filter(c=>(c.name||'').trim()||(c.phone||'').trim()).map(c=>`${esc(c.name||'')} ${c.phone?`· ${esc(c.phone)}`:''}`).join('<br>')||'—';
-  const cats=equipmentCategoriesAll().map(cat=>{const rows=items.filter(i=>s.layout[i.id]?.categoryId===cat.id).sort((a,b)=>s.layout[a.id].order-s.layout[b.id].order);if(!rows.length)return '';return `<section class="print-category"><h3>${esc(cat.name)}</h3>${rows.map(i=>`<div class="print-equipment-row"><div><strong>${esc(i.label)}</strong>${i.detail?`<br><small>${esc(i.detail)}</small>`:''}</div></div>`).join('')}</section>`}).join('');
+  const cats=equipmentCategoriesAll().filter(cat=>s.enabledCategories[cat.id]!==false).map(cat=>{const rows=items.filter(i=>s.layout[i.id]?.categoryId===cat.id).sort((a,b)=>s.layout[a.id].order-s.layout[b.id].order);if(!rows.length)return '';return `<section class="print-category"><h3>${esc(cat.name)}</h3>${rows.map(i=>`<div class="print-equipment-row"><div><strong>${esc(i.label)}</strong>${i.detail?`<br><small>${esc(i.detail)}</small>`:''}</div></div>`).join('')}</section>`}).join('');
   equipmentPrintArea.innerHTML=`<header class="print-equipment-header"><h1>${esc(state.planName||defaultPlanName())}</h1><h2>Liste matériel</h2><div class="print-info-grid"><div class="print-info-block"><strong>Production</strong><p>${esc(s.production||'—')}</p></div><div class="print-info-block"><strong>À contacter</strong><p>${contacts}</p></div>${s.notes?`<div class="print-info-block print-info-wide"><strong>Infos en plus</strong><p>${esc(s.notes)}</p></div>`:''}</div></header>${cats||'<p class="print-empty">Aucun matériel.</p>'}`;
 }
 function printEquipmentSheet(){buildEquipmentPrintArea();setTimeout(()=>window.print(),60)}
@@ -1228,7 +1249,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;state.equipmentSheet=null;seed();resetStageViewport();render();renderLibraryList();setMainTab('plan')}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.46',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.47',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
