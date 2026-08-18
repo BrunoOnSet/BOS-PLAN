@@ -1,4 +1,4 @@
-const APP_VERSION='V1.43';
+const APP_VERSION='V1.44';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -394,6 +394,7 @@ function renderCanvas(){
   state.objects.filter(o=>o.kind==='camera').forEach(drawCameraFov);
   if(state.beamsVisible!==false)state.objects.filter(o=>o.kind==='light'&&o.beamVisible!==false).forEach(drawLightBeam);
   state.objects.forEach(drawObject);
+  drawPlanScaleOverlay();
   renderPreview();
   updatePlanBadge();
   scheduleAutosave();
@@ -445,6 +446,22 @@ function drawLightBeam(o){
   const beam=displayBeamAngle(o),base=fixtureEmitterBase(o),len=base.len,half=Math.tan(rad(beam/2))*len,c=lightColor(o,.13),beamRot=o.rot+fixtureBeamOffset(o);
   const points=base.type==='point'?`0,0 ${len},${-half} ${len},${half}`:`0,${-(base.span/2)} ${len},${-half} ${len},${half} 0,${base.span/2}`;
   beamsLayer.appendChild(svgEl('polygon',{points,class:'beam',style:`fill:${c.fill};stroke:${c.stroke}`,transform:`translate(${o.x} ${o.y}) rotate(${beamRot})`}));
+}
+
+function drawPlanScaleOverlay(){
+  const g=svgEl('g',{class:'scale-overlay-group'});
+  const margin=16;
+  const x0=stageViewport.x+stageViewport.w-100-margin;
+  const xSmall=x0+25;
+  const x1=x0+100;
+  const y=stageViewport.y+stageViewport.h-16;
+  const tickTop=y-6,tickBot=y+6;
+  g.appendChild(svgEl('line',{x1:x0,y1:y,x2:x1,y2:y,class:'scale-overlay-line'}));
+  [x0,xSmall,x1].forEach(x=>g.appendChild(svgEl('line',{x1:x,y1:tickTop,x2:x,y2:tickBot,class:'scale-overlay-tick'})));
+  g.appendChild(svgEl('text',{x:x0,y:y-8,class:'scale-overlay-text'},'0'));
+  g.appendChild(svgEl('text',{x:(x0+xSmall)/2,y:y-8,class:'scale-overlay-text'},'25 cm'));
+  g.appendChild(svgEl('text',{x:(x0+x1)/2,y:y-8,class:'scale-overlay-text'},'1 m'));
+  objectsLayer.appendChild(g);
 }
 
 function supportsSoftbox(o){
@@ -1066,7 +1083,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;seed();resetStageViewport();render();renderLibraryList();setMainTab('plan')}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.43',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.44',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
