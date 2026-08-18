@@ -1,4 +1,4 @@
-const APP_VERSION='V1.50';
+const APP_VERSION='V1.51';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -404,7 +404,7 @@ function updateGridOpacity(){
   state.gridOpacity=v;
   // Le curseur pilote maintenant à la fois l’opacité ET le contraste.
   // À 100 %, la grille devient volontairement très lisible pour un usage de plan technique.
-  const dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const dark=document.body.classList.contains('dark');
   const t=v;
   const smallA=v===0?0:(.10+t*.57), largeA=v===0?0:(.18+t*.72);
   const smallStroke=dark?`rgba(102,116,132,${smallA.toFixed(3)})`:`rgba(68,84,104,${smallA.toFixed(3)})`;
@@ -1394,7 +1394,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;state.equipmentSheet=null;seed();resetStageViewport();render();renderLibraryList();setMainTab('plan')}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.49',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.51',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
@@ -1464,6 +1464,22 @@ toggleBeamsBtn.onclick=()=>{state.beamsVisible=state.beamsVisible===false;update
 if(gridOpacityRange){gridOpacityRange.oninput=()=>{state.gridOpacity=clamp(Number(gridOpacityRange.value)/100,0,1);updateGridOpacity();scheduleAutosave()};gridOpacityRange.onchange=()=>persistCurrent()}
 if(planLengthRange){planLengthRange.oninput=()=>{setPlanLength(Number(planLengthRange.value),{keepViewport:true});updatePlanBadge()};planLengthRange.onchange=()=>persistCurrent()}
 if(zoomReadout)zoomReadout.addEventListener('click',()=>{resetStageViewport();persistCurrent()})
+
+const themeToggle=document.getElementById('themeToggle'),themeColor=document.getElementById('themeColor');
+function applyTheme(theme){
+  const dark=theme==='dark';
+  document.body.classList.toggle('dark',dark);
+  if(themeToggle)themeToggle.textContent=dark?'LIGHT':'DARK';
+  if(themeColor)themeColor.setAttribute('content',dark?'#0B0C0E':'#F3F1EC');
+  if(typeof updateGridOpacity==='function' && typeof state!=='undefined')updateGridOpacity();
+  if(typeof renderPreview==='function' && typeof state!=='undefined')renderPreview();
+}
+applyTheme(localStorage.getItem('bruno-set-tools-theme')||'light');
+if(themeToggle)themeToggle.addEventListener('click',()=>{
+  const next=document.body.classList.contains('dark')?'light':'dark';
+  localStorage.setItem('bruno-set-tools-theme',next);
+  applyTheme(next);
+});
 
 function normalizeSceneObject(o){
   if(o.kind==='light')normalizeLightObject(o);

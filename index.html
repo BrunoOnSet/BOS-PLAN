@@ -3,30 +3,37 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0b6cff" />
+  <meta name="theme-color" id="themeColor" content="#F3F1EC" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PLAN · BOS" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>BOS · PLAN</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.50" />
-  <link rel="stylesheet" href="styles.css?v=1.50" />
+  <title>BRUNO ONSET / PLAN</title>
+  <link rel="manifest" href="manifest.webmanifest?v=1.51" />
+  <link rel="stylesheet" href="styles.css?v=1.51" />
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
-      <div class="top-left">
-        <div class="brand">
-          <div class="brand-badge">BOS</div>
-          <div>
-            <div class="brand-title">PLAN</div>
-            <div class="brand-subtitle">Bruno OnSet</div>
-          </div>
+    <header class="topbar bos-topbar">
+      <div class="top-inner">
+        <div class="top-title">
+          <a class="tool-eyebrow" href="https://www.brunoguillard.com/" target="_blank" rel="noopener noreferrer" aria-label="Site de Bruno Guillard">
+            <span class="eyebrow-logo" aria-hidden="true">BOS</span>
+            <span class="eyebrow-brand" aria-label="Bruno OnSet"><span class="bos-letter">B</span>RUNO <span class="bos-letter">O</span>N<span class="bos-letter">S</span>ET</span>
+          </a>
+          <h1>PLAN</h1>
         </div>
-        <div class="top-plan-name">
-          <label>Nom du plan
-            <input id="topPlanNameInput" type="text" value="Plan 01" placeholder="Nom du plan">
-          </label>
-        </div>
+        <button class="mode-btn" id="themeToggle" type="button" aria-label="Changer de thème">DARK</button>
+      </div>
+    </header>
+
+    <section class="plan-commandbar panel-like" aria-label="Commandes du plan">
+      <div class="top-plan-name">
+        <label>Nom du plan
+          <input id="topPlanNameInput" type="text" value="Plan 01" placeholder="Nom du plan">
+        </label>
       </div>
       <div class="top-actions icon-actions">
         <button class="top-tool" id="importProjectBtn" type="button" title="Importer un projet">
@@ -80,7 +87,7 @@
         </button>
         <input id="importProjectInput" type="file" accept=".json,.bosplan.json,application/json" hidden>
       </div>
-    </header>
+    </section>
 
     <nav class="main-tabs" aria-label="Navigation principale">
       <button id="planTabBtn" class="main-tab active" type="button">Plan</button>
@@ -121,7 +128,7 @@
             </div>
           </div>
           <div class="toolbar-note">
-            <strong id="appVersionBadge">V1.49</strong>
+            <strong id="appVersionBadge">V1.51</strong>
             <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
           </div>
         </div>
@@ -400,6 +407,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.50"></script>
+  <script src="app.js?v=1.51"></script>
 </body>
 </html>

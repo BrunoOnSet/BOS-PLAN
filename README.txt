@@ -1,4 +1,4 @@
-BOS · PLAN — V1.50
+BOS · PLAN — V1.51
 
 Nouveautés :
 - Réglages repliables : bouton « Masquer / Afficher » pour libérer de la place, particulièrement utile sur téléphone avant la vue caméra.
@@ -16,4 +16,7 @@ IMPORTANT — faisceaux :
 Le cône affiché reste un repère de plan schématique. Il ne doit pas être interprété comme une photométrie constructeur garantie.
 
 
-V1.50 : nom BOS PLAN ; sélection caméra par marque + menu modèle comme EXPO, synchronisée avec BOS-CAMERA-DB ; changement de projecteur et de caméra via le même écran de catalogue que lors de la création.
+V1.51 : nom BOS PLAN ; sélection caméra par marque + menu modèle comme EXPO, synchronisée avec BOS-CAMERA-DB ; changement de projecteur et de caméra via le même écran de catalogue que lors de la création.
+
+
+V1.51 — harmonisation complète de la direction artistique avec BOS EXPO : header BOS, palette light/dark, sélection, typographie et thème manuel partagé.
