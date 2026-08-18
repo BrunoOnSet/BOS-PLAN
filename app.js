@@ -1,4 +1,4 @@
-const APP_VERSION='V1.48';
+const APP_VERSION='V1.49';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -115,7 +115,7 @@ async function refreshCameraDb(){
 setCameraDb(FALLBACK_CAMERA_DB);
 loadCachedCameraDb();
 
-const lightCatalog=[
+let lightCatalog=[
   // AMARAN — Halo
   {brand:'Amaran',family:'Halo',name:'amaran Halo 60x',short:'H60x',form:'halo',beam:55},
   {brand:'Amaran',family:'Halo',name:'amaran Halo 100x',short:'H100',form:'halo',beam:55},
@@ -206,6 +206,34 @@ const lightCatalog=[
   {brand:'Aputure',family:'Mini',name:'Aputure MC',short:'MC',form:'pocket',beam:120},
   {brand:'Aputure',family:'Practical',name:'Aputure Accent B7c',short:'B7c',form:'bulb',beam:180}
 ];
+
+const LIGHT_DB_URL="https://raw.githubusercontent.com/BrunoSetTools/BOS-LIGHT-DB/main/lights.json";
+const LIGHT_DB_CACHE_KEY="bos-light-db-cache-v1";
+function planPresetFromSharedFixture(f){
+  if(!f||f.capabilities?.planFeu===false||!f.plan)return null;
+  return {id:f.id,name:f.name,brand:f.brand||'Autre',family:f.family||'Projecteur',short:f.short||f.name,form:f.plan.form||'cob',beam:Number(f.plan.beam)||55,aspect:f.plan.aspect,length:f.plan.length};
+}
+function setSharedLightDb(data){
+  const presets=(data?.fixtures||[]).map(planPresetFromSharedFixture).filter(Boolean);
+  if(!presets.length)return false;
+  lightCatalog=presets;
+  return true;
+}
+function loadCachedLightDb(){
+  try{const cached=JSON.parse(localStorage.getItem(LIGHT_DB_CACHE_KEY)||'null');if(cached)setSharedLightDb(cached)}catch(_){ }
+}
+async function refreshLightDb(){
+  let data=null;
+  try{const res=await fetch(LIGHT_DB_URL,{cache:'no-store'});if(!res.ok)throw new Error(String(res.status));data=await res.json()}catch(_){
+    try{const res=await fetch('./lights.json',{cache:'no-store'});if(res.ok)data=await res.json()}catch(__){ }
+  }
+  if(data&&setSharedLightDb(data)){
+    try{localStorage.setItem(LIGHT_DB_CACHE_KEY,JSON.stringify(data))}catch(_){ }
+    state.objects?.filter(o=>o.kind==='light').forEach(normalizeLightObject);
+    render();
+  }
+}
+
 
 // Objets grip et décor disponibles dans Ajouter un élément.
 const accessoryCatalog=[
@@ -409,7 +437,7 @@ function normalizeLightObject(o){
     o.beam=Number(o.beam)||p.beam;o.aspect=o.aspect||p.aspect;o.length=o.length||p.length;
   } else {
     o.brand=o.brand||((o.name||'').toLowerCase().includes('aputure')?'Aputure':'Amaran');
-    o.family=o.family||'Projecteur';o.form=o.form||'cob';o.short=o.short||String(o.name||'LIGHT').replace(/^amaran\s+|^Aputure\s+/i,'').slice(0,7);
+    o.family=o.family||'Projecteur';o.form=o.form||'cob';o.short=o.short||String(o.name||'LIGHT').replace(/^(amaran|Aputure|Nanlite|Godox)\s+/i,'').slice(0,7);
   }
   o.modifier=o.modifier||'none';
   if(o.beamVisible===undefined)o.beamVisible=true;
@@ -1055,7 +1083,7 @@ function openLightChooser(replaceId=null){
   replaceLightId=replaceId;hideChoosers();lightChooser.classList.remove('hidden');dialogTitle.textContent=replaceId?'Changer de projecteur':'Choisir une lumière';const obj=replaceId?state.objects.find(x=>x.id===replaceId):null;catalogBrand=obj?.brand||catalogBrand||'Amaran';catalogFamily=obj?.family||'';renderLightChooser();if(!addDialog.open){if(typeof addDialog.showModal==='function')addDialog.showModal();else addDialog.setAttribute('open','')}
 }
 function renderLightChooser(){
-  const brands=['Amaran','Aputure'];brandChoices.innerHTML=brands.map(b=>`<button class="choice-btn ${catalogBrand===b?'active':''}" data-brand="${b}">${b}</button>`).join('');
+  const brands=[...new Set(lightCatalog.map(p=>p.brand))];if(!brands.includes(catalogBrand))catalogBrand=brands[0]||'Amaran';brandChoices.innerHTML=brands.map(b=>`<button class="choice-btn ${catalogBrand===b?'active':''}" data-brand="${b}">${b}</button>`).join('');
   brandChoices.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{catalogBrand=btn.dataset.brand;catalogFamily='';renderLightChooser()});
   const fams=[...new Set(lightCatalog.filter(p=>p.brand===catalogBrand).map(p=>p.family))];if(!fams.includes(catalogFamily))catalogFamily=fams[0]||'';
   familyChoices.innerHTML=fams.map(f=>`<button class="choice-btn ${catalogFamily===f?'active':''}" data-family="${esc(f)}">${esc(f.toUpperCase())}</button>`).join('');
@@ -1063,7 +1091,7 @@ function renderLightChooser(){
   if(favoriteChoices){favoriteChoices.innerHTML=`<button class="choice-btn ${!catalogFavoritesOnly?'active':''}" data-fav-mode="all">Tous</button><button class="choice-btn ${catalogFavoritesOnly?'active':''}" data-fav-mode="fav">★ Favoris</button>`;favoriteChoices.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{catalogFavoritesOnly=btn.dataset.favMode==='fav';renderLightChooser()})}
   const baseItems=lightCatalog.filter(p=>p.brand===catalogBrand&&p.family===catalogFamily);
   const items=catalogFavoritesOnly?baseItems.filter(isFavoriteLight):baseItems;
-  modelChoices.innerHTML=items.length?items.map(p=>`<div class="model-row"><button class="choice-btn model-btn" data-light-index="${lightCatalog.indexOf(p)}">${esc(p.name.replace(/^amaran\s+|^Aputure\s+/i,''))}</button><button class="fav-btn ${isFavoriteLight(p)?'active':''}" type="button" data-fav-index="${lightCatalog.indexOf(p)}" title="Favori">★</button></div>`).join(''):`<div class="empty-inline">Aucun projecteur favori dans cette famille.</div>`;
+  modelChoices.innerHTML=items.length?items.map(p=>`<div class="model-row"><button class="choice-btn model-btn" data-light-index="${lightCatalog.indexOf(p)}">${esc(p.name.replace(/^(amaran|Aputure|Nanlite|Godox)\s+/i,''))}</button><button class="fav-btn ${isFavoriteLight(p)?'active':''}" type="button" data-fav-index="${lightCatalog.indexOf(p)}" title="Favori">★</button></div>`).join(''):`<div class="empty-inline">Aucun projecteur favori dans cette famille.</div>`;
   modelChoices.querySelectorAll('.model-btn').forEach(btn=>btn.onclick=()=>addLightFromPreset(lightCatalog[Number(btn.dataset.lightIndex)],replaceLightId));
   modelChoices.querySelectorAll('.fav-btn').forEach(btn=>btn.onclick=(e)=>{e.stopPropagation();toggleFavoriteLight(lightCatalog[Number(btn.dataset.favIndex)])});
   const favCount=lightCatalog.filter(isFavoriteLight).length;
@@ -1301,7 +1329,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;state.equipmentSheet=null;seed();resetStageViewport();render();renderLibraryList();setMainTab('plan')}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.48',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.49',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
@@ -1381,7 +1409,7 @@ function normalizeSceneObject(o){
 }
 function load(){
   const versionBadge=document.getElementById('appVersionBadge');if(versionBadge)versionBadge.textContent=APP_VERSION;
-  loadLibrary();loadFavoriteLights();
+  loadLibrary();loadFavoriteLights();loadCachedLightDb();
   try{
     const raw=localStorage.getItem(CURRENT_KEY)||localStorage.getItem('bos-plan-feu-v05')||localStorage.getItem('bos-plan-feu-v04')||localStorage.getItem('bos-plan-feu-v03')||localStorage.getItem('bos-plan-feu-v02')||localStorage.getItem('bos-plan-feu-v01');
     const saved=raw&&JSON.parse(raw);
@@ -1392,3 +1420,4 @@ function load(){
 window.addEventListener('resize',renderPreview);setMainTab('plan');
 load();
 refreshCameraDb();
+refreshLightDb();
