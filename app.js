@@ -1,4 +1,4 @@
-const APP_VERSION='V1.47';
+const APP_VERSION='V1.48';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -62,13 +62,58 @@ const importProjectInput=document.getElementById('importProjectInput');
 const stageWrap=document.getElementById('stageWrap');
 const zoomReadout=document.getElementById('zoomReadout');
 
-const cameras={
-  'Sony FX3':{w:35.6,h:23.8},
-  'Sony FX6':{w:35.7,h:18.8},
-  'Sony a7S III':{w:35.6,h:23.8},
-  'Full Frame 3:2':{w:36,h:24},
-  'Super 35 / APS-C':{w:23.5,h:15.6}
+const CAMERA_DB_URL="https://raw.githubusercontent.com/BrunoSetTools/BOS-CAMERA-DB/main/cameras.json";
+const CAMERA_DB_CACHE_KEY="bos-camera-db-cache-v1";
+const FALLBACK_CAMERA_DB={"schemaVersion":1,"databaseVersion":"1.0","updated":"2026-08-18","cameras":[{"id":"fx30","name":"Sony FX30","brand":"Sony","group":"SONY","sensorWidthMm":23.3,"dof":{"label":"Super 35 / APS-C","cocMm":0.019,"cropToFF":1.5}},{"id":"fx3","name":"Sony FX3","brand":"Sony","group":"SONY","sensorWidthMm":35.6,"dof":{"label":"Full Frame","cocMm":0.029,"cropToFF":1.0}},{"id":"fx5","name":"Sony FX5","brand":"Sony","group":"SONY","sensorWidthMm":35.9,"dof":{"label":"Full Frame","cocMm":0.029,"cropToFF":1.0}},{"id":"fx6","name":"Sony FX6","brand":"Sony","group":"SONY","sensorWidthMm":35.6,"dof":{"label":"Full Frame","cocMm":0.029,"cropToFF":1.0}},{"id":"vraptor","name":"RED V-RAPTOR VV","brand":"RED","group":"ARRI / RED","sensorWidthMm":40.96,"dof":{"label":"Vista Vision","cocMm":0.033,"cropToFF":0.88}},{"id":"miniLF","name":"ARRI ALEXA Mini LF","brand":"ARRI","group":"ARRI / RED","sensorWidthMm":36.7,"dof":{"label":"Large Format","cocMm":0.03,"cropToFF":0.98}},{"id":"alexa35","name":"ARRI ALEXA 35","brand":"ARRI","group":"ARRI / RED","sensorWidthMm":27.99,"dof":{"label":"Super 35","cocMm":0.023,"cropToFF":1.29}},{"id":"ff","name":"Full Frame 36 mm","brand":"Générique","group":"GÉNÉRIQUE","sensorWidthMm":36.0,"dof":{"label":"Full Frame","cocMm":0.029,"cropToFF":1.0}},{"id":"s35","name":"Super 35","brand":"Générique","group":"GÉNÉRIQUE","sensorWidthMm":24.89,"dof":{"label":"Super 35","cocMm":0.019,"cropToFF":1.5}},{"id":"apsc","name":"APS-C","brand":"Générique","group":"GÉNÉRIQUE","sensorWidthMm":23.5,"dof":{"label":"APS-C","cocMm":0.019,"cropToFF":1.53}},{"id":"mft","name":"Micro 4/3","brand":"Générique","group":"GÉNÉRIQUE","sensorWidthMm":17.3,"dof":{"label":"Micro 4/3","cocMm":0.014,"cropToFF":2.08}},{"id":"oneinch","name":"1 pouce","brand":"Générique","group":"GÉNÉRIQUE","sensorWidthMm":13.2,"dof":{"label":"1 pouce","cocMm":0.011,"cropToFF":2.73}}]};
+let cameraDb=FALLBACK_CAMERA_DB;
+let cameraPresets=[...FALLBACK_CAMERA_DB.cameras];
+let cameras={};
+// Compatibilité avec les plans créés avant la base caméra commune.
+const LEGACY_CAMERAS={
+  'Sony a7S III':{w:35.6,h:35.6*9/16,legacy:true},
+  'Full Frame 3:2':{w:36,h:36*9/16,legacy:true},
+  'Super 35 / APS-C':{w:23.5,h:23.5*9/16,legacy:true}
 };
+function validCameraDb(data){
+  return !!(data&&Array.isArray(data.cameras)&&data.cameras.some(c=>c?.id&&c?.name&&Number(c.sensorWidthMm)>0));
+}
+function cameraSensorHeight(c){
+  const explicit=Number(c?.sensorHeightMm??c?.sensorHeight??c?.frame?.sensorHeightMm??c?.sensor?.heightMm);
+  // PLAN FEU affiche une vue 16:9 : si la DB ne contient que la largeur (schéma actuel),
+  // on utilise la hauteur 16:9 correspondante. Une future hauteur explicite sera utilisée automatiquement.
+  return explicit>0?explicit:Number(c?.sensorWidthMm||36)*9/16;
+}
+function rebuildCameraMap(){
+  const shared={};
+  cameraPresets.forEach(c=>{
+    const w=Number(c.sensorWidthMm)||36;
+    shared[c.name]={w,h:cameraSensorHeight(c),id:c.id,brand:c.brand||'',group:c.group||'',label:c.dof?.label||''};
+  });
+  cameras={...LEGACY_CAMERAS,...shared};
+}
+function setCameraDb(data){
+  if(!validCameraDb(data))return false;
+  const presets=data.cameras.filter(c=>c?.id&&c?.name&&Number(c.sensorWidthMm)>0);
+  if(!presets.length)return false;
+  cameraDb=data;cameraPresets=presets;rebuildCameraMap();return true;
+}
+function loadCachedCameraDb(){
+  try{const cached=JSON.parse(localStorage.getItem(CAMERA_DB_CACHE_KEY)||'null');if(cached)setCameraDb(cached)}catch(_ ){}
+}
+async function refreshCameraDb(){
+  try{
+    const res=await fetch(CAMERA_DB_URL,{cache:'no-store'});if(!res.ok)throw new Error(String(res.status));
+    const data=await res.json();if(!setCameraDb(data))throw new Error('invalid');
+    try{localStorage.setItem(CAMERA_DB_CACHE_KEY,JSON.stringify(data))}catch(_ ){}
+    if(typeof state!=='undefined'){
+      state.objects?.filter(o=>o.kind==='camera').forEach(normalizeCameraObject);
+      if(!cameras[state.cameraModel])state.cameraModel='Sony FX3';
+      render();
+    }
+  }catch(_ ){}
+}
+setCameraDb(FALLBACK_CAMERA_DB);
+loadCachedCameraDb();
 
 const lightCatalog=[
   // AMARAN — Halo
@@ -487,6 +532,13 @@ function supportsSoftbox(o){
 function cameraModelShortName(name=''){
   return String(name).replace(/^Sony\s+/i,'').trim()||String(name||'');
 }
+function cameraOptionsHtml(selectedName=''){
+  const groups=new Map();
+  cameraPresets.forEach(c=>{const group=c.group||c.brand||'CAMÉRAS';if(!groups.has(group))groups.set(group,[]);groups.get(group).push(c)});
+  let html=[...groups.entries()].map(([group,list])=>`<optgroup label="${esc(group)}">${list.map(c=>`<option value="${esc(c.name)}" ${selectedName===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}</optgroup>`).join('');
+  if(selectedName&&LEGACY_CAMERAS[selectedName]&&!cameraPresets.some(c=>c.name===selectedName))html+=`<optgroup label="ANCIENS PLANS"><option value="${esc(selectedName)}" selected>${esc(selectedName)}</option></optgroup>`;
+  return html;
+}
 function addLightModifier(g,o){
   if(!o.modifier||o.modifier==='none')return;
   const size=Math.max(.3,Number(o.modifierSize)||.9),px=size*SCALE;
@@ -727,7 +779,7 @@ function renderInspector(){
   if(o.kind==='light'){const currentIndex=Math.max(0,lightCatalog.findIndex(p=>p.name===o.name||p.short===o.short));html+=`<div class="field"><label>Projecteur / modèle</label><select id="selectedLightModel">${lightCatalog.map((p,i)=>`<option value="${i}" ${i===currentIndex?'selected':''}>${esc(p.name.replace(/^amaran\s+/i,'Amaran ').replace(/^Aputure\s+/i,'Aputure '))}</option>`).join('')}</select></div>`;}
   html+=`<div class="field"><label>${o.kind==='light'?'Nom personnalisé':'Nom'}</label><input data-k="name" value="${esc(o.name)}"></div>`;
   if(o.kind==='camera'){
-    html+=`<div class="field"><label>Caméra / capteur</label><select id="selectedCameraModel">${Object.keys(cameras).map(name=>`<option value="${esc(name)}" ${o.cameraModel===name?'selected':''}>${esc(name)}</option>`).join('')}</select></div>`;
+    html+=`<div class="field"><label>Caméra / capteur</label><select id="selectedCameraModel">${cameraOptionsHtml(o.cameraModel)}</select></div>`;
     const focalPresets=[18,24,28,35,50,85,105,135];
     html+=`<div class="field"><label>Focale</label><div class="field-inline"><input id="cameraFocalInput" data-k="focal" type="number" min="12" max="300" step="1" value="${Math.round(o.focal)}"><span class="unit">mm</span></div><div class="preset-row">${focalPresets.map(v=>`<button type="button" class="preset-chip ${Math.round(o.focal)===v?'active':''}" data-focal-preset="${v}">${v}</button>`).join('')}</div></div>`;
     html+=`<div class="field slider-field"><div class="slider-head"><label>Hauteur caméra</label><strong data-slider-out="height">${Number(o.height||1.55).toFixed(2)} m</strong></div><input data-k="height" type="range" min="0.2" max="4" step="0.05" value="${o.height}"></div>`;
@@ -1249,7 +1301,7 @@ function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;state.equipmentSheet=null;seed();resetStageViewport();render();renderLibraryList();setMainTab('plan')}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.47',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.48',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
@@ -1339,3 +1391,4 @@ function load(){
 }
 window.addEventListener('resize',renderPreview);setMainTab('plan');
 load();
+refreshCameraDb();

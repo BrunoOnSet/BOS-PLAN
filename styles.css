@@ -281,3 +281,6 @@ button{border:0;border-radius:12px;padding:10px 14px;font-weight:750}.ghost{back
 .equipment-category-toggle{min-width:46px;padding:5px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel-2,#f5f7fa);color:var(--muted);font-size:10px;font-weight:900}.equipment-category-toggle.active{background:var(--blue-soft);border-color:#6ca3ff;color:var(--blue)}
 .equipment-item-actions{display:flex;align-items:center;gap:2px}.equipment-item-edit,.equipment-item-remove{width:28px;height:28px;padding:0;border-radius:9px;background:transparent;border:0;font-size:16px}.equipment-item-edit{color:var(--blue)}.equipment-item-edit:hover{background:var(--blue-soft)}
 @media(max-width:760px){.equipment-item{grid-template-columns:22px minmax(0,1fr) auto}.equipment-item-actions{gap:0}}
+
+/* --- V1.48 base caméra commune BOS --- */
+#selectedCameraModel optgroup{font-weight:800}
