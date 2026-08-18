@@ -8,8 +8,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>BOS · Plan Feu</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.44" />
-  <link rel="stylesheet" href="styles.css?v=1.44" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.46" />
+  <link rel="stylesheet" href="styles.css?v=1.46" />
 </head>
 <body>
   <div class="app-shell">
@@ -55,6 +55,12 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 16l3-4 2.5 3 2-2.5L18 16"/></svg>
               </span>
               <span>Exporter un PNG</span>
+            </button>
+            <button class="export-option" id="equipmentListBtn" type="button">
+              <span class="export-option-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
+              </span>
+              <span>Liste matériel</span>
             </button>
           </div>
         </div>
@@ -115,7 +121,7 @@
             </div>
           </div>
           <div class="toolbar-note">
-            <strong id="appVersionBadge">V1.44</strong>
+            <strong id="appVersionBadge">V1.46</strong>
             <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
           </div>
         </div>
@@ -285,6 +291,62 @@
     </div>
   </dialog>
 
+  <dialog id="equipmentDialog" class="equipment-dialog">
+    <div class="equipment-shell">
+      <div class="dialog-head equipment-dialog-head">
+        <div>
+          <div class="dialog-kicker">EXPORTER · FICHE MATÉRIEL</div>
+          <h2>Liste matériel</h2>
+          <p>Le matériel présent sur le plan est ajouté automatiquement. Tu peux réorganiser la liste et compléter ce qui manque.</p>
+        </div>
+        <button class="dialog-close" id="closeEquipmentBtn" aria-label="Fermer">×</button>
+      </div>
+
+      <section class="equipment-info-card">
+        <div class="choice-label">INFOS</div>
+        <label class="equipment-field">Production
+          <input id="equipmentProduction" type="text" placeholder="Nom de la production">
+        </label>
+        <div class="equipment-contacts-head">
+          <strong>À contacter</strong>
+          <button class="ghost small-btn" id="addEquipmentContactBtn" type="button">+ Ajouter un contact</button>
+        </div>
+        <div id="equipmentContacts" class="equipment-contacts"></div>
+        <label class="equipment-field">Infos en plus
+          <textarea id="equipmentNotes" rows="3" placeholder="Horaires, adresse, contraintes, remarques…"></textarea>
+        </label>
+      </section>
+
+      <div class="equipment-list-toolbar">
+        <div>
+          <div class="choice-label">MATÉRIEL</div>
+          <p>Glisse les éléments pour changer leur ordre ou les déplacer dans une autre catégorie.</p>
+        </div>
+        <button class="ghost small-btn" id="addEquipmentCategoryBtn" type="button">+ Catégorie</button>
+      </div>
+      <div id="equipmentCategories" class="equipment-categories"></div>
+
+      <section class="equipment-add-card">
+        <div class="equipment-add-head">
+          <div>
+            <div class="choice-label">+ AJOUTER</div>
+            <p>Ajouter du matériel qui n’apparaît pas sur le plan.</p>
+          </div>
+          <button class="ghost small-btn" id="addFreeEquipmentBtn" type="button">+ Élément libre</button>
+        </div>
+        <div class="equipment-add-tabs" id="equipmentAddTabs"></div>
+        <div class="equipment-add-catalog" id="equipmentAddCatalog"></div>
+      </section>
+
+      <div class="equipment-footer">
+        <button class="ghost" id="closeEquipmentFooterBtn" type="button">Fermer</button>
+        <button class="primary" id="printEquipmentBtn" type="button">Imprimer / PDF · A4</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="equipmentPrintArea" class="equipment-print-area" aria-hidden="true"></div>
+
   <dialog id="libraryDialog" class="library-dialog">
     <div class="library-shell">
       <div class="dialog-head">
@@ -317,6 +379,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.44"></script>
+  <script src="app.js?v=1.46"></script>
 </body>
 </html>

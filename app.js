@@ -1,4 +1,4 @@
-const APP_VERSION='V1.44';
+const APP_VERSION='V1.46';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -49,6 +49,15 @@ const importProjectBtn=document.getElementById('importProjectBtn');
 const exportMenuBtn=document.getElementById('exportMenuBtn');
 const exportPopover=document.getElementById('exportPopover');
 const exportBtn=document.getElementById('exportBtn');
+const equipmentListBtn=document.getElementById('equipmentListBtn');
+const equipmentDialog=document.getElementById('equipmentDialog');
+const equipmentCategories=document.getElementById('equipmentCategories');
+const equipmentProduction=document.getElementById('equipmentProduction');
+const equipmentContacts=document.getElementById('equipmentContacts');
+const equipmentNotes=document.getElementById('equipmentNotes');
+const equipmentAddTabs=document.getElementById('equipmentAddTabs');
+const equipmentAddCatalog=document.getElementById('equipmentAddCatalog');
+const equipmentPrintArea=document.getElementById('equipmentPrintArea');
 const importProjectInput=document.getElementById('importProjectInput');
 const stageWrap=document.getElementById('stageWrap');
 const zoomReadout=document.getElementById('zoomReadout');
@@ -170,7 +179,7 @@ const decorCatalog=[
 const CURRENT_KEY='bos-plan-feu-v06-current';
 const FAVORITES_KEY='bos-plan-feu-favorite-lights-v01';
 const LIB_KEY='bos-plan-feu-library-v06';
-let state={objects:[],selected:null,activePreviewCamera:null,cameraModel:'Sony FX3',focal:50,snap:.25,labelsMode:'full',beamsVisible:true,gridOpacity:.5,planLength:10,planId:null,planName:'Plan 01',folderId:'folder_general',planOptionsOpen:true};
+let state={objects:[],selected:null,activePreviewCamera:null,cameraModel:'Sony FX3',focal:50,snap:.25,labelsMode:'full',beamsVisible:true,gridOpacity:.5,planLength:10,planId:null,planName:'Plan 01',folderId:'folder_general',planOptionsOpen:true,equipmentSheet:null};
 let library={folders:[{id:'folder_general',name:'Plans'}],plans:[]};
 let drag=null;
 
@@ -300,6 +309,7 @@ function ensureStateDefaults(){
   if(state.planOptionsOpen===undefined)state.planOptionsOpen=true;
   if(state.planLength===undefined)state.planLength=10;
   state.planLength=clamp(Number(state.planLength)||10,4,30);
+  ensureEquipmentSheet();
 }
 function loadLibrary(){
   try{const raw=localStorage.getItem(LIB_KEY),v=raw&&JSON.parse(raw);if(v&&Array.isArray(v.folders)&&Array.isArray(v.plans))library=v}catch{}
@@ -450,17 +460,23 @@ function drawLightBeam(o){
 
 function drawPlanScaleOverlay(){
   const g=svgEl('g',{class:'scale-overlay-group'});
-  const margin=16;
-  const x0=stageViewport.x+stageViewport.w-100-margin;
+  // Échelle calée sur la grille : 25 px = 25 cm, 100 px = 1 m.
+  // On l'aligne sur le grand carré en bas à droite, légèrement rentrée pour éviter l'angle arrondi.
+  const grid=25;
+  const safeCols=1;
+  const safeRows=1;
+  const rightGrid=Math.floor((stageViewport.x+stageViewport.w)/grid)*grid-safeCols*grid;
+  const bottomGrid=Math.floor((stageViewport.y+stageViewport.h)/grid)*grid-safeRows*grid;
+  const x1=rightGrid;
+  const x0=x1-100;
   const xSmall=x0+25;
-  const x1=x0+100;
-  const y=stageViewport.y+stageViewport.h-16;
+  const y=bottomGrid;
   const tickTop=y-6,tickBot=y+6;
   g.appendChild(svgEl('line',{x1:x0,y1:y,x2:x1,y2:y,class:'scale-overlay-line'}));
   [x0,xSmall,x1].forEach(x=>g.appendChild(svgEl('line',{x1:x,y1:tickTop,x2:x,y2:tickBot,class:'scale-overlay-tick'})));
-  g.appendChild(svgEl('text',{x:x0,y:y-8,class:'scale-overlay-text'},'0'));
-  g.appendChild(svgEl('text',{x:(x0+xSmall)/2,y:y-8,class:'scale-overlay-text'},'25 cm'));
-  g.appendChild(svgEl('text',{x:(x0+x1)/2,y:y-8,class:'scale-overlay-text'},'1 m'));
+  g.appendChild(svgEl('text',{x:x0,y:y-9,class:'scale-overlay-text'},'0'));
+  g.appendChild(svgEl('text',{x:(x0+xSmall)/2,y:y-9,class:'scale-overlay-text'},'25 cm'));
+  g.appendChild(svgEl('text',{x:(x0+x1)/2,y:y-9,class:'scale-overlay-text'},'1 m'));
   objectsLayer.appendChild(g);
 }
 
@@ -1039,6 +1055,135 @@ function buildLibraryInto(target){
     });target.appendChild(box);
   });
 }
+
+const EQUIPMENT_BASE_CATEGORIES=[
+  {id:'camera',name:'Caméra'},
+  {id:'light',name:'Lumière'},
+  {id:'accessory',name:'Accessoire'},
+  {id:'extra',name:'Petit matériel & consommables'}
+];
+const EQUIPMENT_ADD_CATALOG={
+  camera:[
+    ['camera','Caméra'],['lens','Objectif'],['monitor','Moniteur'],['tripod','Trépied'],['battery-camera','Batterie caméra'],['charger-camera','Chargeur'],['media','Carte mémoire'],['video-cable','Câble HDMI / SDI']
+  ],
+  light:[
+    ['light','Projecteur'],['tube','Tube LED'],['softbox','Softbox'],['umbrella-diff','Parapluie diffusion'],['umbrella-reflect','Parapluie réflexion'],['grid','Grille nid d’abeille'],['light-stand','Pied lumière'],['ballast','Ballast / alimentation']
+  ],
+  accessory:[
+    ['diff-frame','Cadre de diffusion'],['diffusion','Diffusion'],['reflector','Réflecteur'],['borniol','Borniol'],['negative','Negative fill'],['cstand','C-Stand'],['combo','Pied combo'],['boom','Girafe / boom'],['sandbag','Sac de lest'],['clamp','Pince'],['superclamp','Super Clamp'],['magic-arm','Bras magique'],['spigot','Rotule / spigot']
+  ],
+  extra:[
+    ['extension-16a','Rallonge 16 A'],['extension','Rallonge secteur'],['reel','Enrouleur'],['power-strip','Triplette / multiprise'],['adapter','Adaptateur secteur'],['gaffer','Gaffer'],['cinefoil','Cinefoil / Blackwrap'],['paper-tape','Paper tape'],['velcro','Velcro / serre-câbles'],['safety','Câble de sécurité'],['clothespins','Pinces à linge'],['marker','Marqueur'],['aa','Piles AA / AAA'],['lens-cloth','Chiffon optique'],['wipes','Lingettes optiques']
+  ]
+};
+let equipmentAddType='camera';
+let equipmentDragId=null;
+function ensureEquipmentSheet(){
+  if(!state.equipmentSheet||typeof state.equipmentSheet!=='object')state.equipmentSheet={};
+  const s=state.equipmentSheet;
+  if(typeof s.production!=='string')s.production='';
+  if(typeof s.notes!=='string')s.notes='';
+  if(!Array.isArray(s.contacts))s.contacts=[];
+  if(!Array.isArray(s.customCategories))s.customCategories=[];
+  if(!Array.isArray(s.manualItems))s.manualItems=[];
+  if(!s.layout||typeof s.layout!=='object')s.layout={};
+  return s;
+}
+function equipmentModifierText(o){
+  const cm=Math.round((Number(o.modifierSize)||.9)*100);
+  if(o.modifier==='softbox')return `Softbox ${cm} cm`;
+  if(o.modifier==='umbrella-reflect')return `Parapluie réflexion ${cm} cm`;
+  if(o.modifier==='umbrella-diffusion')return `Parapluie diffusion ${cm} cm`;
+  return '';
+}
+function autoEquipmentItems(){
+  const items=[];
+  state.objects.filter(o=>o.kind==='camera').forEach(o=>items.push({id:`auto:${o.id}`,source:'auto',defaultCategory:'camera',label:o.cameraModel||o.name,detail:`${o.name} · ${Math.round(o.focal||50)} mm`}));
+  state.objects.filter(o=>o.kind==='light').forEach(o=>{const mod=equipmentModifierText(o);items.push({id:`auto:${o.id}`,source:'auto',defaultCategory:'light',label:o.name,detail:mod||'Projecteur nu'})});
+  state.objects.filter(o=>o.kind==='accessory').forEach(o=>items.push({id:`auto:${o.id}`,source:'auto',defaultCategory:'accessory',label:o.name,detail:`${Number(o.width||0).toFixed(1)} × ${Number(o.zHeight||o.height||0).toFixed(1)} m`}));
+  return items;
+}
+function equipmentCategoriesAll(){const s=ensureEquipmentSheet();return [...EQUIPMENT_BASE_CATEGORIES,...s.customCategories]}
+function equipmentItemsAll(){const s=ensureEquipmentSheet();return [...autoEquipmentItems(),...s.manualItems.map(i=>({...i,source:'manual'}))]}
+function syncEquipmentSheet(){
+  const s=ensureEquipmentSheet(),cats=equipmentCategoriesAll(),validCats=new Set(cats.map(c=>c.id)),items=equipmentItemsAll(),validItems=new Set(items.map(i=>i.id));
+  Object.keys(s.layout).forEach(id=>{if(!validItems.has(id))delete s.layout[id]});
+  const counts={};
+  items.forEach(i=>{
+    const defaultCat=validCats.has(i.defaultCategory)?i.defaultCategory:'extra';
+    if(!s.layout[i.id])s.layout[i.id]={categoryId:defaultCat,order:counts[defaultCat]||0};
+    if(!validCats.has(s.layout[i.id].categoryId))s.layout[i.id].categoryId=defaultCat;
+    counts[s.layout[i.id].categoryId]=(counts[s.layout[i.id].categoryId]||0)+1;
+  });
+  normalizeEquipmentOrders();
+}
+function normalizeEquipmentOrders(){
+  const s=ensureEquipmentSheet(),items=equipmentItemsAll();
+  equipmentCategoriesAll().forEach(cat=>{
+    items.filter(i=>s.layout[i.id]?.categoryId===cat.id).sort((a,b)=>(s.layout[a.id]?.order||0)-(s.layout[b.id]?.order||0)).forEach((i,n)=>s.layout[i.id].order=n);
+  });
+}
+function moveEquipmentItem(id,categoryId,beforeId=null){
+  const s=ensureEquipmentSheet();if(!s.layout[id])return;
+  const items=equipmentItemsAll();
+  let ids=items.filter(i=>i.id!==id&&s.layout[i.id]?.categoryId===categoryId).sort((a,b)=>s.layout[a.id].order-s.layout[b.id].order).map(i=>i.id);
+  const at=beforeId?ids.indexOf(beforeId):-1;if(at>=0)ids.splice(at,0,id);else ids.push(id);
+  s.layout[id].categoryId=categoryId;ids.forEach((x,n)=>{if(s.layout[x])s.layout[x].order=n});normalizeEquipmentOrders();persistCurrent();renderEquipmentDialog();
+}
+function removeManualEquipment(id){const s=ensureEquipmentSheet();s.manualItems=s.manualItems.filter(i=>i.id!==id);delete s.layout[id];persistCurrent();renderEquipmentDialog()}
+function addManualEquipment(label,categoryId='extra',detail=''){
+  const s=ensureEquipmentSheet(),id=uid('eq');s.manualItems.push({id,label,detail,defaultCategory:categoryId});s.layout[id]={categoryId,order:999};normalizeEquipmentOrders();persistCurrent();renderEquipmentDialog();
+}
+function categoryNameForAddType(type){return EQUIPMENT_BASE_CATEGORIES.find(c=>c.id===type)?.name||'Matériel'}
+function addCatalogEquipment(key,label,type){
+  let detail='';
+  if(key==='gaffer'){const color=prompt('Couleur du gaffer','Noir');if(color===null)return;detail=`Couleur : ${(color||'Noir').trim()}`}
+  if(key==='paper-tape'){const color=prompt('Couleur du paper tape','Blanc');if(color===null)return;detail=`Couleur : ${(color||'Blanc').trim()}`}
+  addManualEquipment(label,type,detail);
+}
+function renderEquipmentAddCatalog(){
+  if(!equipmentAddTabs||!equipmentAddCatalog)return;
+  equipmentAddTabs.innerHTML=EQUIPMENT_BASE_CATEGORIES.map(c=>`<button type="button" class="equipment-add-tab ${equipmentAddType===c.id?'active':''}" data-eq-add-type="${c.id}">${esc(c.name)}</button>`).join('');
+  equipmentAddTabs.querySelectorAll('[data-eq-add-type]').forEach(b=>b.onclick=()=>{equipmentAddType=b.dataset.eqAddType;renderEquipmentAddCatalog()});
+  const entries=EQUIPMENT_ADD_CATALOG[equipmentAddType]||[];
+  equipmentAddCatalog.innerHTML=entries.map(([key,label])=>`<button type="button" class="equipment-catalog-item" data-eq-catalog-key="${esc(key)}">+ ${esc(label)}</button>`).join('');
+  equipmentAddCatalog.querySelectorAll('[data-eq-catalog-key]').forEach((b,i)=>{const [key,label]=entries[i];b.onclick=()=>addCatalogEquipment(key,label,equipmentAddType)});
+}
+function renderEquipmentContacts(){
+  const s=ensureEquipmentSheet();if(!equipmentContacts)return;
+  equipmentContacts.innerHTML=s.contacts.length?s.contacts.map((c,i)=>`<div class="equipment-contact-row" data-contact-index="${i}"><input data-contact-field="name" value="${esc(c.name||'')}" placeholder="Nom"><input data-contact-field="phone" value="${esc(c.phone||'')}" placeholder="Téléphone"><button type="button" class="equipment-contact-remove" title="Supprimer">×</button></div>`).join(''):`<div class="equipment-empty">Aucun contact.</div>`;
+  equipmentContacts.querySelectorAll('.equipment-contact-row').forEach(row=>{const i=Number(row.dataset.contactIndex);row.querySelectorAll('[data-contact-field]').forEach(inp=>inp.oninput=()=>{s.contacts[i][inp.dataset.contactField]=inp.value;scheduleAutosave()});row.querySelector('.equipment-contact-remove').onclick=()=>{s.contacts.splice(i,1);persistCurrent();renderEquipmentContacts()}});
+}
+function renderEquipmentCategories(){
+  syncEquipmentSheet();const s=ensureEquipmentSheet(),items=equipmentItemsAll();if(!equipmentCategories)return;
+  equipmentCategories.innerHTML=equipmentCategoriesAll().map(cat=>{
+    const catItems=items.filter(i=>s.layout[i.id]?.categoryId===cat.id).sort((a,b)=>s.layout[a.id].order-s.layout[b.id].order);
+    const custom=s.customCategories.some(c=>c.id===cat.id);
+    return `<section class="equipment-category" data-eq-category="${cat.id}"><div class="equipment-category-head"><strong>${esc(cat.name)}</strong><div class="equipment-category-actions">${custom?`<button type="button" class="equipment-category-remove" data-remove-category="${cat.id}">Supprimer</button>`:''}</div></div><div class="equipment-dropzone" data-drop-category="${cat.id}">${catItems.length?catItems.map(i=>`<div class="equipment-item" draggable="true" data-eq-item="${i.id}"><span class="equipment-drag-handle">⋮⋮</span><div class="equipment-item-copy"><strong>${esc(i.label)}</strong>${i.detail?`<small>${esc(i.detail)}</small>`:''}</div><span class="equipment-item-source">${i.source==='auto'?'plan':'ajouté'}</span>${i.source==='manual'?`<button class="equipment-item-remove" type="button" title="Supprimer">×</button>`:'<span></span>'}</div>`).join(''):`<div class="equipment-empty">Dépose du matériel ici</div>`}</div></section>`
+  }).join('');
+  equipmentCategories.querySelectorAll('[data-remove-category]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.removeCategory,cat=s.customCategories.find(c=>c.id===id);if(!cat||!confirm(`Supprimer la catégorie « ${cat.name} » ? Les éléments seront déplacés dans Petit matériel & consommables.`))return;s.customCategories=s.customCategories.filter(c=>c.id!==id);Object.values(s.layout).forEach(l=>{if(l.categoryId===id)l.categoryId='extra'});persistCurrent();renderEquipmentDialog()});
+  equipmentCategories.querySelectorAll('.equipment-dropzone').forEach(zone=>{zone.ondragover=e=>{e.preventDefault();zone.classList.add('drag-over')};zone.ondragleave=()=>zone.classList.remove('drag-over');zone.ondrop=e=>{e.preventDefault();zone.classList.remove('drag-over');if(equipmentDragId)moveEquipmentItem(equipmentDragId,zone.dataset.dropCategory)}});
+  equipmentCategories.querySelectorAll('.equipment-item').forEach(row=>{
+    row.ondragstart=e=>{equipmentDragId=row.dataset.eqItem;row.classList.add('dragging');e.dataTransfer.effectAllowed='move'};row.ondragend=()=>{equipmentDragId=null;row.classList.remove('dragging')};
+    row.ondragover=e=>{e.preventDefault()};row.ondrop=e=>{e.preventDefault();e.stopPropagation();if(equipmentDragId&&equipmentDragId!==row.dataset.eqItem){const cat=row.closest('[data-eq-category]').dataset.eqCategory;moveEquipmentItem(equipmentDragId,cat,row.dataset.eqItem)}};
+    const rm=row.querySelector('.equipment-item-remove');if(rm)rm.onclick=()=>removeManualEquipment(row.dataset.eqItem);
+  });
+}
+function renderEquipmentDialog(){
+  ensureEquipmentSheet();syncEquipmentSheet();const s=state.equipmentSheet;
+  if(equipmentProduction)equipmentProduction.value=s.production||'';if(equipmentNotes)equipmentNotes.value=s.notes||'';
+  renderEquipmentContacts();renderEquipmentCategories();renderEquipmentAddCatalog();
+}
+function openEquipmentDialog(){toggleExportPopover(false);renderEquipmentDialog();if(typeof equipmentDialog.showModal==='function')equipmentDialog.showModal();else equipmentDialog.setAttribute('open','')}
+function closeEquipmentDialog(){if(equipmentDialog?.open&&typeof equipmentDialog.close==='function')equipmentDialog.close();else equipmentDialog?.removeAttribute('open')}
+function buildEquipmentPrintArea(){
+  syncEquipmentSheet();const s=ensureEquipmentSheet(),items=equipmentItemsAll();
+  const contacts=s.contacts.filter(c=>(c.name||'').trim()||(c.phone||'').trim()).map(c=>`${esc(c.name||'')} ${c.phone?`· ${esc(c.phone)}`:''}`).join('<br>')||'—';
+  const cats=equipmentCategoriesAll().map(cat=>{const rows=items.filter(i=>s.layout[i.id]?.categoryId===cat.id).sort((a,b)=>s.layout[a.id].order-s.layout[b.id].order);if(!rows.length)return '';return `<section class="print-category"><h3>${esc(cat.name)}</h3>${rows.map(i=>`<div class="print-equipment-row"><div><strong>${esc(i.label)}</strong>${i.detail?`<br><small>${esc(i.detail)}</small>`:''}</div></div>`).join('')}</section>`}).join('');
+  equipmentPrintArea.innerHTML=`<header class="print-equipment-header"><h1>${esc(state.planName||defaultPlanName())}</h1><h2>Liste matériel</h2><div class="print-info-grid"><div class="print-info-block"><strong>Production</strong><p>${esc(s.production||'—')}</p></div><div class="print-info-block"><strong>À contacter</strong><p>${contacts}</p></div>${s.notes?`<div class="print-info-block print-info-wide"><strong>Infos en plus</strong><p>${esc(s.notes)}</p></div>`:''}</div></header>${cats||'<p class="print-empty">Aucun matériel.</p>'}`;
+}
+function printEquipmentSheet(){buildEquipmentPrintArea();setTimeout(()=>window.print(),60)}
+
 function renderLibraryList(){
   populateFolderSelect();if(planNameInput)planNameInput.value=state.planName||defaultPlanName();
   buildLibraryInto(planLibraryList);
@@ -1081,9 +1226,9 @@ Annuler = Créer une copie`);
 function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;resetStageViewport();state=deepClone(rec.state);state.planId=rec.id;state.planName=rec.name;state.folderId=rec.folderId;ensureStateDefaults();state.objects.forEach(normalizeSceneObject);migrateOpeningBindings();state.selected=null;if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null;persistCurrent();render();closeLibraryDialog();setMainTab('plan')}
 function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copyName=prompt('Nom du plan', `${rec.name} copie`);if(!copyName?.trim())return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=copyName.trim();copy.updatedAt=Date.now();copy.folderId=rec.folderId;copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
-function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;seed();resetStageViewport();render();renderLibraryList();setMainTab('plan')}
+function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName=defaultPlanName();state.folderId=folder;state.snap=.25;state.labelsMode='full';state.gridOpacity=.5;state.planLength=10;state.equipmentSheet=null;seed();resetStageViewport();render();renderLibraryList();setMainTab('plan')}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.44',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.46',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
@@ -1138,6 +1283,15 @@ function exportPng(){
   img.onerror=()=>{URL.revokeObjectURL(url);alert("L’export PNG n’a pas pu être généré sur ce navigateur.")};img.src=url;
 }
 if(exportBtn)exportBtn.onclick=()=>{toggleExportPopover(false);exportPng()};
+if(equipmentListBtn)equipmentListBtn.onclick=openEquipmentDialog;
+if(document.getElementById('closeEquipmentBtn'))document.getElementById('closeEquipmentBtn').onclick=closeEquipmentDialog;
+if(document.getElementById('closeEquipmentFooterBtn'))document.getElementById('closeEquipmentFooterBtn').onclick=closeEquipmentDialog;
+if(document.getElementById('addEquipmentContactBtn'))document.getElementById('addEquipmentContactBtn').onclick=()=>{const s=ensureEquipmentSheet();s.contacts.push({name:'',phone:''});persistCurrent();renderEquipmentContacts()};
+if(document.getElementById('addEquipmentCategoryBtn'))document.getElementById('addEquipmentCategoryBtn').onclick=()=>{const name=prompt('Nom de la catégorie');if(!name?.trim())return;const s=ensureEquipmentSheet();s.customCategories.push({id:uid('eqcat'),name:name.trim()});persistCurrent();renderEquipmentDialog()};
+if(document.getElementById('addFreeEquipmentBtn'))document.getElementById('addFreeEquipmentBtn').onclick=()=>{const name=prompt('Nom du matériel');if(!name?.trim())return;addManualEquipment(name.trim(),equipmentAddType)};
+if(equipmentProduction)equipmentProduction.oninput=()=>{ensureEquipmentSheet().production=equipmentProduction.value;scheduleAutosave()};
+if(equipmentNotes)equipmentNotes.oninput=()=>{ensureEquipmentSheet().notes=equipmentNotes.value;scheduleAutosave()};
+if(document.getElementById('printEquipmentBtn'))document.getElementById('printEquipmentBtn').onclick=printEquipmentSheet;
 if(toggleSnapBtn)toggleSnapBtn.onclick=()=>{state.snap=Number(state.snap)>0?0:.25;updatePlanBadge();renderCanvas()};
 labelsModeSelect.onchange=()=>{state.labelsMode=labelsModeSelect.value;renderCanvas()};
 toggleBeamsBtn.onclick=()=>{state.beamsVisible=state.beamsVisible===false;updatePlanBadge();renderCanvas()};
