@@ -1,11 +1,11 @@
 {
-  "name": "BOS · Plan Feu",
-  "short_name": "Plan Feu",
+  "name": "BOS · PLAN",
+  "short_name": "PLAN",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f4f6f9",
   "theme_color": "#0b6cff",
-  "description": "BOS Plan Feu V1.9 — plan feu 2D multicam avec décor et matériel visible dans le cadre",
+  "description": "BOS PLAN V1.50 — plan de tournage 2D, lumière, caméras, décor et liste matériel",
   "icons": [
     {
       "src": "icon-192.png",

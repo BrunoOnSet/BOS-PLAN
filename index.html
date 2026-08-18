@@ -7,9 +7,9 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>BOS · Plan Feu</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.49" />
-  <link rel="stylesheet" href="styles.css?v=1.49" />
+  <title>BOS · PLAN</title>
+  <link rel="manifest" href="manifest.webmanifest?v=1.50" />
+  <link rel="stylesheet" href="styles.css?v=1.50" />
 </head>
 <body>
   <div class="app-shell">
@@ -18,7 +18,7 @@
         <div class="brand">
           <div class="brand-badge">BOS</div>
           <div>
-            <div class="brand-title">Plan Feu</div>
+            <div class="brand-title">PLAN</div>
             <div class="brand-subtitle">Bruno OnSet</div>
           </div>
         </div>
@@ -149,7 +149,7 @@
             <div class="stage-view-controls" aria-label="Navigation du plan">
               <button id="zoomReadout" type="button" class="stage-zoom-readout" title="Revenir à 100 %">100 %</button>
             </div>
-            <svg id="stage" viewBox="0 0 1000 620" aria-label="Plan feu vue du dessus">
+            <svg id="stage" viewBox="0 0 1000 620" aria-label="Plan vue du dessus">
               <defs>
                 <pattern id="smallGrid" width="25" height="25" patternUnits="userSpaceOnUse">
                   <path d="M 25 0 L 0 0 0 25" fill="none" class="grid-small"/>
@@ -279,6 +279,27 @@
         <div class="chooser-footnote" id="catalogCount"></div>
       </div>
 
+      <div id="cameraChooser" class="camera-chooser hidden">
+        <div class="chooser-topline">
+          <button class="back-btn" id="backCameraToKindsBtn">← Éléments</button>
+          <div class="catalog-badge">BOS Camera DB</div>
+        </div>
+        <div class="choice-section camera-choice-section">
+          <div class="choice-label">MARQUE</div>
+          <div class="camera-brand-chips" id="cameraBrandChoices"></div>
+        </div>
+        <div class="choice-section camera-choice-section">
+          <div class="choice-label">CAMÉRA</div>
+          <div class="camera-db-select-wrap">
+            <select class="camera-db-select" id="cameraModelChoice" aria-label="Choisir la caméra"></select>
+          </div>
+          <div class="camera-db-note">Liste synchronisée avec BOS Camera DB.</div>
+        </div>
+        <div class="camera-choice-actions">
+          <button class="primary-btn" id="confirmCameraChoiceBtn" type="button">Ajouter la caméra</button>
+        </div>
+      </div>
+
       <div id="simpleChooser" class="simple-chooser hidden">
         <div class="chooser-topline">
           <button class="back-btn" id="backSimpleBtn">← Éléments</button>
@@ -351,7 +372,7 @@
     <div class="library-shell">
       <div class="dialog-head">
         <div>
-          <div class="dialog-kicker">BOS · PLAN FEU</div>
+          <div class="dialog-kicker">BOS · PLAN</div>
           <h2>Mes plans</h2>
         </div>
         <button class="dialog-close" id="closeLibraryBtn" aria-label="Fermer">×</button>
@@ -379,6 +400,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.49"></script>
+  <script src="app.js?v=1.50"></script>
 </body>
 </html>

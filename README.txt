@@ -1,4 +1,4 @@
-BOS · PLAN FEU — V1.11
+BOS · PLAN — V1.50
 
 Nouveautés :
 - Réglages repliables : bouton « Masquer / Afficher » pour libérer de la place, particulièrement utile sur téléphone avant la vue caméra.
@@ -14,3 +14,6 @@ Aimantation : Libre / 10 cm / 25 cm / 50 cm / 1 m.
 
 IMPORTANT — faisceaux :
 Le cône affiché reste un repère de plan schématique. Il ne doit pas être interprété comme une photométrie constructeur garantie.
+
+
+V1.50 : nom BOS PLAN ; sélection caméra par marque + menu modèle comme EXPO, synchronisée avec BOS-CAMERA-DB ; changement de projecteur et de caméra via le même écran de catalogue que lors de la création.
