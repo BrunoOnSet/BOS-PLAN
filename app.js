@@ -207,7 +207,7 @@ let lightCatalog=[
   {brand:'Aputure',family:'Practical',name:'Aputure Accent B7c',short:'B7c',form:'bulb',beam:180}
 ];
 
-const LIGHT_DB_URL="https://raw.githubusercontent.com/BrunoSetTools/BOS-LIGHT-DB/main/lights.json";
+const LIGHT_DB_URL="https://raw.githubusercontent.com/BrunoOnSet/BOS-PROJECTEURS-DB/main/lights.json";
 const LIGHT_DB_CACHE_KEY="bos-light-db-cache-v1";
 function planPresetFromSharedFixture(f){
   if(!f||f.capabilities?.planFeu===false||!f.plan)return null;
