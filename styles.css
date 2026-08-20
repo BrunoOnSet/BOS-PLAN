@@ -480,3 +480,17 @@ body.dark .equipment-footer{background:linear-gradient(to bottom,rgba(21,23,26,0
   .top-actions{grid-template-columns:repeat(4,minmax(0,1fr))}
   .topbar h1{font-size:27px}
 }
+
+/* V1.52 — commandes de plan : création/duplication regroupées avec le nom */
+.plan-primary-actions{display:flex;align-items:flex-end;gap:7px;min-width:0;flex:1}
+.plan-primary-actions .top-plan-name{flex:1;min-width:220px;max-width:380px}
+.plan-primary-actions .top-tool{flex:0 0 auto}
+.secondary-plan-actions{flex:0 0 auto;position:relative;margin-left:14px;padding-left:15px}
+.secondary-plan-actions::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;background:var(--line)}
+@media(max-width:900px){
+  .plan-primary-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;width:100%}
+  .plan-primary-actions .top-plan-name{grid-column:1/-1;max-width:none;min-width:0;width:100%}
+  .plan-primary-actions .top-tool{width:100%;min-width:0}
+  .secondary-plan-actions{margin-left:0;padding-left:0;width:100%;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .secondary-plan-actions::before{display:none}
+}

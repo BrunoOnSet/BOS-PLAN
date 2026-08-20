@@ -1,4 +1,4 @@
-BOS · PLAN — V1.51
+BOS · PLAN — V1.52
 
 Nouveautés :
 - Réglages repliables : bouton « Masquer / Afficher » pour libérer de la place, particulièrement utile sur téléphone avant la vue caméra.
@@ -20,3 +20,5 @@ V1.51 : nom BOS PLAN ; sélection caméra par marque + menu modèle comme EXPO, 
 
 
 V1.51 — harmonisation complète de la direction artistique avec BOS EXPO : header BOS, palette light/dark, sélection, typographie et thème manuel partagé.
+
+V1.52 : Nouveau plan regroupé avec le nom, création d'un plan vide nommé « Plan sans nom », et bouton Dupliquer qui sauvegarde l'original puis crée automatiquement « [nom] copie ».

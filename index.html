@@ -11,8 +11,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>BRUNO ONSET / PLAN</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.51" />
-  <link rel="stylesheet" href="styles.css?v=1.51" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.52" />
+  <link rel="stylesheet" href="styles.css?v=1.52" />
 </head>
 <body>
   <div class="app-shell">
@@ -30,12 +30,26 @@
     </header>
 
     <section class="plan-commandbar panel-like" aria-label="Commandes du plan">
-      <div class="top-plan-name">
-        <label>Nom du plan
-          <input id="topPlanNameInput" type="text" value="Plan 01" placeholder="Nom du plan">
-        </label>
+      <div class="plan-primary-actions">
+        <div class="top-plan-name">
+          <label>Nom du plan
+            <input id="topPlanNameInput" type="text" value="Plan sans nom" placeholder="Nom du plan">
+          </label>
+        </div>
+        <button class="top-tool top-tool-primary" id="resetBtn" type="button" title="Créer un nouveau plan vide">
+          <span class="tool-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>
+          </span>
+          <span class="tool-label">Nouveau plan</span>
+        </button>
+        <button class="top-tool top-tool-primary" id="duplicatePlanBtn" type="button" title="Dupliquer le plan actuel">
+          <span class="tool-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+          </span>
+          <span class="tool-label">Dupliquer</span>
+        </button>
       </div>
-      <div class="top-actions icon-actions">
+      <div class="top-actions icon-actions secondary-plan-actions">
         <button class="top-tool" id="importProjectBtn" type="button" title="Importer un projet">
           <span class="tool-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M5 19h14"/><rect x="4" y="2.5" width="16" height="19" rx="3" opacity=".18"/></svg>
@@ -72,12 +86,6 @@
           </div>
         </div>
 
-        <button class="top-tool" id="resetBtn" type="button" title="Créer un nouveau plan">
-          <span class="tool-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>
-          </span>
-          <span class="tool-label">Nouveau plan</span>
-        </button>
 
         <button class="top-tool" id="saveBtn" type="button" title="Enregistrer le plan">
           <span class="tool-icon" aria-hidden="true">
@@ -128,7 +136,7 @@
             </div>
           </div>
           <div class="toolbar-note">
-            <strong id="appVersionBadge">V1.51</strong>
+            <strong id="appVersionBadge">V1.52</strong>
             <span id="currentPlanBadge">Plan sans titre · autosauvegarde</span>
           </div>
         </div>
@@ -407,6 +415,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.51"></script>
+  <script src="app.js?v=1.52"></script>
 </body>
 </html>
