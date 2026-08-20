@@ -1,4 +1,4 @@
-const APP_VERSION='V1.52';
+const APP_VERSION='V1.53';
 const NS='http://www.w3.org/2000/svg';
 const stage=document.getElementById('stage');
 const beamsLayer=document.getElementById('beamsLayer');
@@ -379,6 +379,25 @@ function svgEl(tag,attrs={}){const e=document.createElementNS(NS,tag);for(const[
 function deepClone(v){return JSON.parse(JSON.stringify(v))}
 function safeName(s){return String(s||'Plan').trim().replace(/[\/:*?"<>|]+/g,'_').replace(/\s+/g,' ').slice(0,80)||'Plan'}
 function defaultPlanName(){return 'Plan sans nom'}
+function normalizedPlanName(name){return String(name||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('fr-FR')}
+function findPlanNameConflict(name,excludeId=null){
+  const key=normalizedPlanName(name);
+  if(!key)return null;
+  return library.plans.find(p=>p.id!==excludeId&&normalizedPlanName(p.name)===key)||null;
+}
+function warnPlanNameConflict(name){
+  alert(`Un plan nommé « ${name} » existe déjà.\n\nChoisis un autre nom avant de l’enregistrer.`);
+  const input=topPlanNameInput||planNameInput;
+  if(input){requestAnimationFrame(()=>{input.focus();input.select()})}
+  return false;
+}
+function nextAvailableCopyName(baseName){
+  const base=`${String(baseName||defaultPlanName()).trim()||defaultPlanName()} copie`;
+  if(!findPlanNameConflict(base))return base;
+  let i=2;
+  while(findPlanNameConflict(`${base} ${i}`))i++;
+  return `${base} ${i}`;
+}
 function snapValue(v){const step=Number(state.snap)||0;return step?Math.round(v/(step*SCALE))*step*SCALE:v}
 function ensureStateDefaults(){
   if(!Array.isArray(state.objects))state.objects=[];
@@ -419,7 +438,23 @@ function updatePlanOptionsUI(){const open=state.planOptionsOpen!==false;if(planO
 function updatePlanBadge(){if(currentPlanBadge)currentPlanBadge.textContent=`${state.planName||defaultPlanName()} · autosauvegarde`;if(topPlanNameInput&&document.activeElement!==topPlanNameInput)topPlanNameInput.value=state.planName||defaultPlanName();if(planNameInput&&document.activeElement!==planNameInput)planNameInput.value=state.planName||defaultPlanName();if(labelsModeSelect)labelsModeSelect.value=state.labelsMode||'full';if(toggleSnapBtn){const on=Number(state.snap)>0;toggleSnapBtn.classList.toggle('active',on);toggleSnapBtn.textContent=on?'Aimant ON':'Aimant OFF';toggleSnapBtn.setAttribute('aria-pressed',String(on))}if(toggleBeamsBtn){const on=state.beamsVisible!==false;toggleBeamsBtn.classList.toggle('active',on);toggleBeamsBtn.textContent=on?'Faisceau ON':'Faisceau OFF';toggleBeamsBtn.setAttribute('aria-pressed',String(on))}updateGridOpacity();if(planLengthRange)planLengthRange.value=String(Number(state.planLength||10));if(planLengthValue)planLengthValue.textContent=`${Number(state.planLength||10).toFixed(Number(state.planLength)%1?1:0)} m`;updatePlanOptionsUI()}
 function snapshotState(){const copy=deepClone(state);copy.selected=null;return copy}
 function persistCurrent(){
-  try{localStorage.setItem(CURRENT_KEY,JSON.stringify(snapshotState()));if(state.planId){const rec=library.plans.find(p=>p.id===state.planId);if(rec){rec.name=state.planName;rec.folderId=state.folderId;rec.updatedAt=Date.now();rec.state=snapshotState();persistLibrary()}}}catch(e){console.warn('Autosave BOS',e)}
+  try{
+    const snap=snapshotState();
+    localStorage.setItem(CURRENT_KEY,JSON.stringify(snap));
+    if(state.planId){
+      const rec=library.plans.find(p=>p.id===state.planId);
+      if(rec){
+        const conflict=findPlanNameConflict(state.planName,state.planId);
+        const libraryName=conflict?(rec.name||defaultPlanName()):state.planName;
+        rec.name=libraryName;
+        rec.folderId=state.folderId;
+        rec.updatedAt=Date.now();
+        rec.state=deepClone(snap);
+        rec.state.planName=libraryName;
+        persistLibrary();
+      }
+    }
+  }catch(e){console.warn('Autosave BOS',e)}
   updatePlanBadge();
 }
 function scheduleAutosave(){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(persistCurrent,350)}
@@ -1371,7 +1406,9 @@ function savePlanToLibrary(opts={}){
   loadLibrary();
   const mode=opts.mode||(!state.planId?'new':'overwrite');
   const folderId=opts.folderId||state.folderId||folderSelect.value||library.folders[0].id;
-  const name=(opts.name||topPlanNameInput?.value||planNameInput?.value||state.planName||defaultPlanName()).trim()||defaultPlanName();
+  const name=(opts.name||topPlanNameInput?.value||planNameInput?.value||state.planName||defaultPlanName()).trim().replace(/\s+/g,' ')||defaultPlanName();
+  const excludeId=mode==='overwrite'?state.planId:null;
+  if(findPlanNameConflict(name,excludeId))return warnPlanNameConflict(name);
   state.planName=name;state.folderId=folderId;
   if(mode==='copy' || !state.planId)state.planId=uid('plan');
   let rec=library.plans.find(p=>p.id===state.planId);if(!rec){rec={id:state.planId};library.plans.push(rec)}
@@ -1380,7 +1417,10 @@ function savePlanToLibrary(opts={}){
 }
 function saveCurrentPlanFlow(){
   loadLibrary();ensureStateDefaults();
-  if(!state.planId)return savePlanToLibrary({mode:'new'});
+  const candidateName=(topPlanNameInput?.value||planNameInput?.value||state.planName||defaultPlanName()).trim().replace(/\s+/g,' ')||defaultPlanName();
+  if(findPlanNameConflict(candidateName,state.planId))return warnPlanNameConflict(candidateName);
+  state.planName=candidateName;
+  if(!state.planId)return savePlanToLibrary({mode:'new',name:candidateName});
   const overwrite=confirm(`Le plan « ${state.planName} » existe déjà.
 
 OK = Écraser ancien
@@ -1391,29 +1431,39 @@ Annuler = Créer une copie`);
   return savePlanToLibrary({mode:'copy',name:copyName.trim()});
 }
 function openLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;resetStageViewport();state=deepClone(rec.state);state.planId=rec.id;state.planName=rec.name;state.folderId=rec.folderId;ensureStateDefaults();state.objects.forEach(normalizeSceneObject);migrateOpeningBindings();state.selected=null;if(!state.activePreviewCamera)state.activePreviewCamera=state.objects.find(o=>o.kind==='camera')?.id||null;persistCurrent();render();closeLibraryDialog();setMainTab('plan')}
-function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const copyName=prompt('Nom du plan', `${rec.name} copie`);if(!copyName?.trim())return;const copy=deepClone(rec);copy.id=uid('plan');copy.name=copyName.trim();copy.updatedAt=Date.now();copy.folderId=rec.folderId;copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
+function duplicateLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec)return;const suggested=nextAvailableCopyName(rec.name);const copyName=prompt('Nom du plan',suggested);if(!copyName?.trim())return;const cleanName=copyName.trim().replace(/\s+/g,' ');if(findPlanNameConflict(cleanName))return warnPlanNameConflict(cleanName);const copy=deepClone(rec);copy.id=uid('plan');copy.name=cleanName;copy.updatedAt=Date.now();copy.folderId=rec.folderId;copy.state.planId=copy.id;copy.state.planName=copy.name;library.plans.push(copy);persistLibrary();renderLibraryList()}
 function deleteLibraryPlan(id){const rec=library.plans.find(p=>p.id===id);if(!rec||!confirm(`Supprimer « ${rec.name} » ?`))return;library.plans=library.plans.filter(p=>p.id!==id);if(state.planId===id)state.planId=null;persistLibrary();persistCurrent();renderLibraryList()}
 function newPlan(){persistCurrent();loadLibrary();const folder=state.folderId||folderSelect.value||library.folders[0].id;state.planId=null;state.planName='Plan sans nom';state.folderId=folder;state.objects=[];state.selected=null;state.activePreviewCamera=null;state.cameraModel='Sony FX3';state.focal=50;state.snap=.25;state.labelsMode='full';state.beamsVisible=true;state.gridOpacity=.5;state.planLength=10;state.planOptionsOpen=true;state.equipmentSheet=null;state.openingBindingVersion=2;resetStageViewport();render();renderLibraryList();setMainTab('plan');persistCurrent()}
 function newPlanFlow(){if(confirm('Sauvegarder le plan actuel ?')){const ok=saveCurrentPlanFlow();if(!ok)return;}newPlan();flash('Nouveau plan créé')}
 function duplicateCurrentPlan(){
   loadLibrary();ensureStateDefaults();
-  const originalName=(topPlanNameInput?.value||state.planName||defaultPlanName()).trim()||defaultPlanName();
+  const originalName=(topPlanNameInput?.value||state.planName||defaultPlanName()).trim().replace(/\s+/g,' ')||defaultPlanName();
+  if(findPlanNameConflict(originalName,state.planId))return warnPlanNameConflict(originalName);
   state.planName=originalName;
   // La duplication sécurise d'abord l'original dans Mes plans, puis crée et enregistre la copie.
-  savePlanToLibrary({mode:state.planId?'overwrite':'new',name:originalName,folderId:state.folderId});
+  const originalSaved=savePlanToLibrary({mode:state.planId?'overwrite':'new',name:originalName,folderId:state.folderId});
+  if(!originalSaved)return false;
   const originalState=snapshotState();
-  const copyName=`${originalName} copie`;
+  let copyName=`${originalName} copie`;
+  if(findPlanNameConflict(copyName)){
+    const suggested=nextAvailableCopyName(originalName);
+    const chosen=prompt(`Le plan « ${copyName} » existe déjà.\nChoisis un autre nom pour la copie :`,suggested);
+    if(!chosen?.trim())return false;
+    copyName=chosen.trim().replace(/\s+/g,' ');
+    if(findPlanNameConflict(copyName))return warnPlanNameConflict(copyName);
+  }
   state=deepClone(originalState);
   state.planId=null;
   state.planName=copyName;
   state.selected=originalState.selected||null;
-  savePlanToLibrary({mode:'new',name:copyName,folderId:originalState.folderId});
+  if(!savePlanToLibrary({mode:'new',name:copyName,folderId:originalState.folderId}))return false;
   resetStageViewport();
   render();
   renderLibraryList();
   setMainTab('plan');
+  return true;
 }
-function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.52',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
+function projectPayload(planState=snapshotState()){return {format:'BOS_PLAN_FEU',version:'1.53',exportedAt:new Date().toISOString(),plan:deepClone(planState)}}
 function projectFile(planState=snapshotState(),name=state.planName){const payload=projectPayload(planState),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});return new File([blob],`${safeName(name)}.bosplan.json`,{type:'application/json'})}
 async function shareProjectState(planState=snapshotState(),name=state.planName){
   const file=projectFile(planState,name);
